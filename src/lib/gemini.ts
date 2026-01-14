@@ -1,8 +1,10 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const apiKey = process.env.GEMINI_API_KEY;
+console.log("[Gemini] Service Init. Key present:", !!apiKey);
+const genAI = new GoogleGenerativeAI(apiKey!);
 
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 export async function extractSkills(text: string, type: "resume" | "jd") {
   const prompt = `
@@ -21,7 +23,7 @@ export async function extractSkills(text: string, type: "resume" | "jd") {
   `;
 
   try {
-    console.log(`[Gemini] Generating for ${type}...`);
+    console.log(`[Gemini] Generating for ${type}. Input Length: ${text.length}`);
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const textResponse = response.text();
@@ -30,8 +32,9 @@ export async function extractSkills(text: string, type: "resume" | "jd") {
     // Clean code blocks if present
     const jsonStr = textResponse.replace(/^```json\n|\n```$/g, "").trim();
     return JSON.parse(jsonStr);
-  } catch (error) {
-    console.error(`[Gemini] Error extracting for ${type}:`, error);
+  } catch (error: any) {
+    console.error(`[Gemini] Error extracting for ${type}:`, JSON.stringify(error, null, 2));
+    if (error.message) console.error("Error Message:", error.message);
     return { technical: [], tools: [], soft: [] };
   }
 }
