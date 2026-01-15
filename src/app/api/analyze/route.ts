@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseResume } from "@/lib/ingestion";
-import { extractSkills, explainRanking } from "@/lib/gemini";
+import { extractCombinedData, explainRanking } from "@/lib/gemini";
 import { analyzeGitHub } from "@/lib/github";
 import { calculateATSScore } from "@/lib/scoring";
 import { verifySkills, analyzeGap } from "@/lib/analysis";
@@ -21,11 +21,10 @@ export async function POST(req: NextRequest) {
         const buffer = Buffer.from(await file.arrayBuffer());
         const { text: resumeText, links } = await parseResume(buffer);
 
-        // 2. Skill Extraction (Parallel)
-        const [resumeData, jdData] = await Promise.all([
-            extractSkills(resumeText, "resume"),
-            extractSkills(jdText, "jd")
-        ]);
+        // 2. Skill Extraction (Combined Request)
+        const combinedData = await extractCombinedData(resumeText, jdText);
+        const resumeData = combinedData.resume;
+        const jdData = combinedData.jd;
 
         // 3. GitHub Intelligence
         // Use parsed link, fallback to empty string if not found

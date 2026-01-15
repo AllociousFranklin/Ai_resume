@@ -1,0 +1,69 @@
+
+
+ALLOCIOUS FRANKLIN R 
+r.allociousfranklin@gmail.com | 6382696238 | linkedin.com/in/allociousfranklin |
+github.com/AllociousFranklin 
+Chennai, Tamil Nadu, India 
+• Strategic Thinking
+• Clear and Effective Communication
+• Leadership & Team Management
+• Critical Reasoning & Problem Solving
+• Adaptability and Time Management
+• Presentation and Public Speaking 
+Bachelor of Engineering in Computer Science
+Meenakshi Sundararajan Engineering College, Chennai
+CGPA: 8.4 / 10 | Expected Graduation: 2028 
+• Programming Languages: Python, C
+• Tools & Platforms: Git, VS Code, Command Line Interface (CLI)
+• Technologies: OpenAI APIs, HTML, Firebase, Low-Code/No-Code Platforms
+• Development Practices: Modular Design, Rapid Prototyping, Prompt Engineering 
+Circular Economy Marketplace – Team Lead, 
+24-Hour Hackathon Led a 3-member cross-functional team through ideation, design, and
+deployment under tight deadlines, exercising leadership, time management, and collaboration.
+Developed a platform for community-based exchange of reusable goods. Tech Stack: Python,
+Firebase, Figma GitHub: https://github.com/AllociousFranklin/Ecofine 
+AI Spam Detector – Team Lead, Hackathon 
+Demonstrated problem-solving and analytical thinking while engineering a real-time spam 
+detection tool with 95% accuracy. Managed model integration, testing, and communication 
+strategy across team members using agile coordination. 
+Detail-oriented and driven Computer Science undergraduate with strong leadership in hackathon
+environments, a track record of developing functional prototypes, and a growing portfolio of
+technical and communication certifications. Demonstrates initiative, adaptability, and critical
+thinking in collaborative environments. Eager to contribute to dynamic development teams in
+innovative and growth-focused organizations. 
+PROJECTS 
+EDUCATION 
+SOFT SKILLS 
+TECHNICAL SKILLS 
+PROFESSIONAL SUMMARY 
+
+Chess, Sports Leadership, Fitness, Productive Learning, Innovation, Technology-Driven Impact 
+Tech Stack: Python, Regex, OpenAI GitHub: https:
+https://github.com/AllociousFranklin/AI_SPAM_DETECTOR
+Feedback Flow – Individual Project 
+Designed a full-stack AI-powered feedback app for college students, allowing presenters to 
+collect quick, login-free reviews via QR code. Integrated star ratings and feedback forms with a 
+dashboard showing visual analytics. Employed prompt engineering and clean UI for user ease. 
+Tech Stack: OpenAI API, HTML, Firebase, Prompt Engineering 
+GitHub:  https://github.com/AllociousFranklin/FeedbackFlow
+• State-Level Chess Player – Tamil Nadu
+• E³ Presentation Winner – Department-Level Paper Presentation on AI and Emotional
+Intelligence
+• Selected for Intercollegiate Cricket Tournament – Represented college in regional-level
+matches
+• Spearheaded Chess Coaching Initiative – Mentored aspiring players, demonstrating leadership
+and communication skills 
+Sales Management: Business Ethics and Sales – Alison Empower Yourself (2025) 
+Certificate: https://github.com/AllociousFranklin/Certifications- 
+Introduction to Prompt Engineering – SkillUp by Simplilearn (2025) 
+Certificate: 
+https://github.com/AllociousFranklin/Certifications- 
+English Proficiency Certificate – EF SET (2025) 
+Certificate: https://github.com/AllociousFranklin/Certifications- 
+Introduction to Cybersecurity – CISCE Networking Academy (2025) 
+Certificate: https://github.com/AllociousFranklin/Certifications- 
+Introduction to HTML – SkillUp by Simplilearn (2025) 
+Certificate: https://github.com/AllociousFranklin/Certifications- 
+INTERESTS 
+ACHIEVEMENTS 
+CERTIFICATIONS 
