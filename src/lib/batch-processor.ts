@@ -17,6 +17,7 @@ import { verifySkills, analyzeSkillEvolution, evaluateProjectDepth, calculateFit
 import { getFullPrediction } from './ml/predictions';
 import { redactResume, calculateBiasRisk } from './bias/blind-screening';
 import { batchRateLimiter } from './rate-limiter';
+import { validateLink } from './link-validator';
 import {
     generateCandidateId,
     generateJdHash,
@@ -176,6 +177,27 @@ async function processResumeWithRetry(
             const clusterData = combinedData.cluster;
             const explanation = combinedData.explanation;
             const apiMatches = combinedData.matches;
+            // @ts-ignore
+            const jobCategory = combinedData.job_category || "general";
+
+            // 2.5 Adaptive Link Validation
+            let linkScore = 0;
+            console.log(`[BatchProcessor] Job Category: ${jobCategory}`);
+
+            if (jobCategory === "creative" && links.portfolio) {
+                const val = await validateLink(links.portfolio);
+                if (val.isValid) linkScore = 100;
+            } else if (jobCategory === "general" && links.linkedin) {
+                const val = await validateLink(links.linkedin);
+                if (val.isValid) linkScore = 100;
+            } else if ((links.portfolio || links.linkedin) && jobCategory === "technical") {
+                // Technical candidates get a bonus for verified portfolio/linkedin
+                const url = links.portfolio || links.linkedin;
+                if (url) {
+                    const val = await validateLink(url);
+                    if (val.isValid) linkScore = 50;
+                }
+            }
 
             // 3. GitHub Analysis (with cache)
             const githubUsername = links.github || "";
@@ -266,7 +288,9 @@ async function processResumeWithRetry(
                 githubStats.github_score,
                 proofResult.proof_score,
                 qualityData.score,
-                experienceMatch
+                experienceMatch,
+                jobCategory as any,
+                linkScore
             );
 
             // 10. Recommendation

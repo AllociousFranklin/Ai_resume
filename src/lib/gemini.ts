@@ -40,6 +40,7 @@ export interface CombinedExtraction {
   quality: ResumeQuality;
   cluster: CandidateCluster;
   explanation: string;
+  job_category: "technical" | "general" | "creative";
   matches: Array<{
     jdSkill: string;
     resumeSkill: string | null;
@@ -80,6 +81,7 @@ Perform a comprehensive analysis including:
 3. Classify candidate into a cluster type
 4. Write a 2-3 sentence AI assessment explaining how well this candidate fits the role
 5. Semantic Match: Map EVERY skill in the "jd" section to a matching skill in "resume" (or null if missing).
+6. Job Classification: Classify the job into "technical", "creative", or "general".
 
 Return ONLY a valid JSON object with this EXACT structure:
 {
@@ -109,11 +111,17 @@ Return ONLY a valid JSON object with this EXACT structure:
         "traits": ["trait1", "trait2"]
     },
     "explanation": "This candidate demonstrates...",
+    "job_category": "technical",
     "matches": [
         { "jdSkill": "React", "resumeSkill": "React.js", "confidence": 1.0, "category": "technical" },
         { "jdSkill": "AWS", "resumeSkill": null, "confidence": 0.0, "category": "technical" }
     ]
 }
+
+JOB CATEGORIES:
+- "technical": Software Engineering, Data Science, DevOps, IT, Cybersecurity. (GitHub Critical)
+- "creative": Design, UX/UI, Content Creation, Marketing. (Portfolio Critical)
+- "general": Business, Sales, HR, Management, Operations. (LinkedIn/Experience Critical)
 
 MATCHING GUIDELINES:
 - For EACH JD skill, find the best matching skill in the resume.
@@ -198,6 +206,7 @@ ${jdText.substring(0, 10000)}
         traits: parsed.cluster?.traits || []
       },
       explanation: parsed.explanation || "Analysis complete. Review the detailed scores for more information.",
+      job_category: parsed.job_category || "general",
       matches: parsed.matches || []
     };
   } catch (error: any) {
@@ -275,6 +284,7 @@ function getDefaultExtraction(): CombinedExtraction {
     quality: { score: 50, formatting: 50, achievements: 50, clarity: 50, improvements: [] },
     cluster: { type: "generalist", confidence: 0.5, traits: [] },
     explanation: "Unable to analyze. Please try again.",
+    job_category: "general",
     matches: []
   };
 }

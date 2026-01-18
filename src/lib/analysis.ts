@@ -245,26 +245,42 @@ export function calculateFitScore(
     githubScore: number,
     proofScore: number,
     qualityScore: number,
-    experienceMatch: boolean
+    experienceMatch: boolean,
+    jobCategory: "technical" | "general" | "creative" = "technical",
+    linkScore: number = 0
 ): number {
-    // Weighted calculation
-    const weights = {
-        ats: 0.30,
-        github: 0.25,
-        proof: 0.20,
-        quality: 0.15,
-        experience: 0.10
-    };
+    // Dynamic weights based on category
+    let weights;
+
+    switch (jobCategory) {
+        case "creative":
+            // Portfolio is king
+            weights = { ats: 0.20, github: 0.00, proof: 0.00, quality: 0.30, experience: 0.10, link: 0.40 };
+            break;
+        case "general":
+            // Identity/LinkedIn is key
+            weights = { ats: 0.40, github: 0.00, proof: 0.00, quality: 0.10, experience: 0.20, link: 0.30 };
+            break;
+        case "technical":
+        default:
+            // GitHub & Skills are king
+            weights = { ats: 0.30, github: 0.25, proof: 0.20, quality: 0.15, experience: 0.10, link: 0.00 };
+            break;
+    }
 
     const expBonus = experienceMatch ? 100 : 50;
 
-    const finalScore = Math.round(
-        (atsScore * weights.ats) +
+    let finalScore = (atsScore * weights.ats) +
         (githubScore * weights.github) +
         (proofScore * weights.proof) +
         (qualityScore * weights.quality) +
-        (expBonus * weights.experience)
-    );
+        (expBonus * weights.experience) +
+        (linkScore * weights.link);
 
-    return Math.min(Math.max(finalScore, 0), 100);
+    // For technical roles, links are a bonus (capped at 100)
+    if (jobCategory === "technical" && linkScore > 0) {
+        finalScore += (linkScore * 0.05); // 5% bonus for valid links
+    }
+
+    return Math.round(Math.min(finalScore, 100));
 }
