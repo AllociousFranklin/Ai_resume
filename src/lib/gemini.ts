@@ -39,6 +39,13 @@ export interface CombinedExtraction {
   };
   quality: ResumeQuality;
   cluster: CandidateCluster;
+  explanation: string;
+  matches: Array<{
+    jdSkill: string;
+    resumeSkill: string | null;
+    confidence: number;
+    category: "technical" | "tools" | "soft";
+  }>;
 }
 
 // Helper for delay
@@ -62,7 +69,7 @@ async function generateContentWithRetry(prompt: string, retries = 5) {
 }
 
 /**
- * Combined extraction - skills, quality, and clustering in one call
+ * Combined extraction - skills, quality, clustering AND explanation in one call
  */
 export async function extractCombinedData(resumeText: string, jdText: string): Promise<CombinedExtraction> {
   const prompt = `
@@ -71,6 +78,8 @@ Perform a comprehensive analysis including:
 1. Extract skills (technical, tools, soft skills) from BOTH documents
 2. Assess resume quality (formatting, achievements, clarity)
 3. Classify candidate into a cluster type
+4. Write a 2-3 sentence AI assessment explaining how well this candidate fits the role
+5. Semantic Match: Map EVERY skill in the "jd" section to a matching skill in "resume" (or null if missing).
 
 Return ONLY a valid JSON object with this EXACT structure:
 {
@@ -98,8 +107,19 @@ Return ONLY a valid JSON object with this EXACT structure:
         "type": "specialist",
         "confidence": 0.85,
         "traits": ["trait1", "trait2"]
-    }
+    },
+    "explanation": "This candidate demonstrates...",
+    "matches": [
+        { "jdSkill": "React", "resumeSkill": "React.js", "confidence": 1.0, "category": "technical" },
+        { "jdSkill": "AWS", "resumeSkill": null, "confidence": 0.0, "category": "technical" }
+    ]
 }
+
+MATCHING GUIDELINES:
+- For EACH JD skill, find the best matching skill in the resume.
+- "resumeSkill": null if no match found.
+- "confidence": 0.8-1.0 (Exact/Synonym), 0.5-0.79 (Related), 0.0 (Missing).
+- Examples: JS=JavaScript (1.0), CLI=Bash (0.9), React=Vue (0.0 - different frameworks).
 
 CLUSTER TYPES:
 - "specialist": Deep expertise in one domain (e.g., "ML Engineer", "iOS Developer")
@@ -112,6 +132,13 @@ QUALITY SCORING (0-100 each):
 - formatting: Layout, structure, readability, proper sections
 - achievements: Quantified results (numbers, percentages, impact)
 - clarity: Clear descriptions, no jargon overload, concise
+
+EXPLANATION GUIDELINES:
+- Be specific about skill matches and gaps
+- Mention experience level alignment
+- Note any red flags or standout qualities
+- Keep it professional and actionable (2-3 sentences max)
+- IMPORTANT: Do not use double quotes within the explanation string. Use single quotes if needed.
 
 === RESUME TEXT ===
 ${resumeText.substring(0, 25000)}
@@ -127,11 +154,19 @@ ${jdText.substring(0, 10000)}
     const textResponse = response.text();
     console.log(`[Gemini] Response Received`);
 
-    // Clean JSON from markdown code blocks
-    const jsonStr = textResponse
+    // Clean JSON from markdown code blocks and find the JSON object
+    let jsonStr = textResponse
       .replace(/```json\n?/g, "")
       .replace(/```\n?/g, "")
       .trim();
+
+    // Find the first '{' and last '}'
+    const firstOpen = jsonStr.indexOf('{');
+    const lastClose = jsonStr.lastIndexOf('}');
+
+    if (firstOpen !== -1 && lastClose !== -1) {
+      jsonStr = jsonStr.substring(firstOpen, lastClose + 1);
+    }
 
     const parsed = JSON.parse(jsonStr);
 
@@ -161,7 +196,9 @@ ${jdText.substring(0, 10000)}
         type: parsed.cluster?.type || "generalist",
         confidence: parsed.cluster?.confidence || 0.5,
         traits: parsed.cluster?.traits || []
-      }
+      },
+      explanation: parsed.explanation || "Analysis complete. Review the detailed scores for more information.",
+      matches: parsed.matches || []
     };
   } catch (error: any) {
     console.error(`[Gemini] Extraction Error:`, error?.message || error);
@@ -236,7 +273,9 @@ function getDefaultExtraction(): CombinedExtraction {
     resume: { technical: [], tools: [], soft: [], experience_years: 0, education_level: "unknown" },
     jd: { technical: [], tools: [], soft: [], required_experience: 0 },
     quality: { score: 50, formatting: 50, achievements: 50, clarity: 50, improvements: [] },
-    cluster: { type: "generalist", confidence: 0.5, traits: [] }
+    cluster: { type: "generalist", confidence: 0.5, traits: [] },
+    explanation: "Unable to analyze. Please try again.",
+    matches: []
   };
 }
 

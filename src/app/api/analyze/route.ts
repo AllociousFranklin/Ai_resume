@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parseResume } from "@/lib/ingestion";
+import { parseResume, extractCandidateName, extractEmail } from "@/lib/ingestion";
 import { extractCombinedData, explainRanking } from "@/lib/gemini";
 import { analyzeGitHub } from "@/lib/github";
-import { calculateATSScore, getHiringRecommendation } from "@/lib/scoring";
+import { calculateATSScoreWithSemantic, getHiringRecommendation } from "@/lib/scoring";
+import {
+    matchSkillsSemantically,
+    getMissingSkills,
+    getCriticalGaps,
+    getNiceToHaveGaps,
+    getMatchPercentages
+} from "@/lib/semantic-skill-engine";
 import {
     verifySkills,
-    analyzeGap,
     analyzeSkillEvolution,
     evaluateProjectDepth,
     calculateFitScore
@@ -34,6 +40,8 @@ export async function POST(req: NextRequest) {
         // 1. Ingestion - Parse Resume
         const buffer = Buffer.from(await file.arrayBuffer());
         const { text: resumeText, links, metadata } = await parseResume(buffer, file.name);
+        const candidateName = extractCandidateName(resumeText);
+        const candidateEmail = extractEmail(resumeText);
         console.log(`[API] Resume parsed: ${metadata.wordCount} words, format: ${metadata.format}`);
 
         // 2. AI Extraction - Skills, Quality, Clustering
@@ -49,34 +57,43 @@ export async function POST(req: NextRequest) {
         const githubStats = await analyzeGitHub(githubUsername);
         console.log(`[API] GitHub analyzed. Score: ${githubStats.github_score}`);
 
-        // 4. Calculate ATS Score
-        const atsResult = calculateATSScore(
-            resumeData,
-            jdData,
+        // 4. UNIFIED SEMANTIC SKILL ENGINE (Single Source of Truth)
+        console.log(`[API] Starting semantic skill matching...`);
+        const semanticResult = await matchSkillsSemantically(
+            { technical: jdData.technical, tools: jdData.tools, soft: jdData.soft },
+            { technical: resumeData.technical, tools: resumeData.tools, soft: resumeData.soft }
+        );
+        console.log(`[API] Semantic matching complete: ${semanticResult.stats.matched}/${semanticResult.stats.total} matched, ${semanticResult.stats.partial} partial, ${semanticResult.stats.missing} missing`);
+
+        // 5. Calculate ATS Score (uses semantic results)
+        const atsResult = calculateATSScoreWithSemantic(
+            semanticResult,
             resumeData.experience_years,
             jdData.required_experience
         );
-        console.log(`[API] ATS Score: ${atsResult.score}`);
+        console.log(`[API] ATS Score (Semantic): ${atsResult.score}`);
 
-        // 5. Skill Verification
+        // 6. Gap Analysis (uses SAME semantic results - no contradictions!)
+        const { overallMatch } = getMatchPercentages(semanticResult);
+        const missingSkills = getMissingSkills(semanticResult);
+        const criticalGaps = getCriticalGaps(semanticResult);
+        const niceToHaveGaps = getNiceToHaveGaps(semanticResult);
+        console.log(`[API] Gap Analysis: ${overallMatch}% match, ${missingSkills.length} missing`);
+
+        // 7. Skill Verification (GitHub-based - independent of semantic matching)
         const allCandidateSkills = [...resumeData.technical, ...resumeData.tools];
         const proofResult = verifySkills(allCandidateSkills, githubStats);
         console.log(`[API] Proof Score: ${proofResult.proof_score}`);
 
-        // 6. Gap Analysis
-        const allJdSkills = [...jdData.technical, ...jdData.tools];
-        const gapResult = analyzeGap(allCandidateSkills, allJdSkills);
-        console.log(`[API] Match: ${gapResult.match_percentage}%`);
-
-        // 7. Skill Evolution
+        // 8. Skill Evolution
         const skillEvolution = analyzeSkillEvolution(githubStats);
         console.log(`[API] Growth Score: ${skillEvolution.growth_score}`);
 
-        // 8. Project Depth
+        // 9. Project Depth
         const projectDepth = evaluateProjectDepth(githubStats);
         console.log(`[API] Project Complexity: ${projectDepth.average_complexity}`);
 
-        // 9. Calculate Final Score
+        // 10. Calculate Final Score
         const experienceMatch = jdData.required_experience > 0
             ? resumeData.experience_years >= jdData.required_experience * 0.7
             : true;
@@ -89,10 +106,10 @@ export async function POST(req: NextRequest) {
             experienceMatch
         );
 
-        // 10. Get Recommendation
+        // 11. Get Recommendation
         const recommendation = getHiringRecommendation(finalScore);
 
-        // 11. Generate AI Explanation
+        // 12. Generate AI Explanation
         const explanation = await explainRanking(
             {
                 ats: atsResult.score,
@@ -108,21 +125,21 @@ export async function POST(req: NextRequest) {
         const processingTime = Date.now() - startTime;
         console.log(`[API] Analysis complete in ${processingTime}ms`);
 
-        // 12. ML Predictions
+        // 13. ML Predictions
         const mlPredictions = getFullPrediction({
             atsScore: atsResult.score,
             githubScore: githubStats.github_score,
             proofScore: proofResult.proof_score,
             qualityScore: qualityData.score,
             experienceYears: resumeData.experience_years,
-            skillMatchPercentage: gapResult.match_percentage,
+            skillMatchPercentage: overallMatch,
             velocityScore: githubStats.velocity?.score || 0,
             clusterType: clusterData.type,
             educationLevel: resumeData.education_level
         });
         console.log(`[API] ML Predictions generated. Success probability: ${mlPredictions.success.probability}`);
 
-        // 13. Blind Screening Analysis
+        // 14. Blind Screening Analysis
         const blindScreening = redactResume(resumeText);
         const biasRisk = calculateBiasRisk(blindScreening.redactions);
         console.log(`[API] Bias risk level: ${biasRisk.level}`);
@@ -133,12 +150,14 @@ export async function POST(req: NextRequest) {
             final_score: finalScore,
             recommendation,
 
-            // Breakdowns
+            // ATS Breakdown (from semantic engine)
             ats: {
                 score: atsResult.score,
                 breakdown: atsResult.breakdown,
                 matched_skills: atsResult.matchedSkills,
-                missing_skills: atsResult.missingSkills
+                missing_skills: atsResult.missingSkills,
+                matching_type: "semantic",
+                semantic_stats: semanticResult.stats
             },
 
             github: {
@@ -165,11 +184,12 @@ export async function POST(req: NextRequest) {
                 improvements: qualityData.improvements
             },
 
+            // Gap Analysis (from SAME semantic engine - no contradictions)
             gap_analysis: {
-                match_percentage: gapResult.match_percentage,
-                missing: gapResult.missing,
-                critical_gaps: gapResult.critical_gaps,
-                nice_to_have: gapResult.nice_to_have_gaps
+                match_percentage: overallMatch,
+                missing: missingSkills,
+                critical_gaps: criticalGaps,
+                nice_to_have: niceToHaveGaps
             },
 
             skill_evolution: {
@@ -192,50 +212,47 @@ export async function POST(req: NextRequest) {
                 traits: clusterData.traits
             },
 
-            // ML Predictions
-            predictions: {
-                success: {
-                    probability: mlPredictions.success.probability,
-                    confidence: mlPredictions.success.confidence,
-                    factors: mlPredictions.success.factors
+            predictions: mlPredictions,
+
+            explanation,
+
+            bias: {
+                risk_level: biasRisk.level,
+                risk_score: biasRisk.score,
+                redactions: blindScreening.redactions.length
+            },
+
+            extracted_skills: {
+                resume: {
+                    technical: resumeData.technical,
+                    tools: resumeData.tools,
+                    soft: resumeData.soft
                 },
-                retention: {
-                    two_year_probability: mlPredictions.retention.twoYearProbability,
-                    risk_factors: mlPredictions.retention.riskFactors,
-                    retention_factors: mlPredictions.retention.retentionFactors
-                },
-                growth: {
-                    score: mlPredictions.growth.score,
-                    trajectory: mlPredictions.growth.trajectory,
-                    indicators: mlPredictions.growth.indicators
-                },
-                ramp_up: {
-                    weeks: mlPredictions.rampUp.weeksToProductivity,
-                    range: mlPredictions.rampUp.confidenceRange,
-                    factors: mlPredictions.rampUp.factors
+                jd: {
+                    technical: jdData.technical,
+                    tools: jdData.tools,
+                    soft: jdData.soft
                 }
             },
 
-            // Bias Mitigation
-            bias_analysis: {
-                risk_score: biasRisk.score,
-                risk_level: biasRisk.level,
-                details: biasRisk.details,
-                redactions: blindScreening.redactions
-            },
-
-            // Metadata
-            explanation,
-            extracted_skills: resumeData,
-            jd_requirements: jdData,
-            resume_metadata: metadata,
-            processing_time_ms: processingTime
+            metadata: {
+                candidate_name: candidateName,
+                candidate_email: candidateEmail,
+                resume_format: metadata.format,
+                word_count: metadata.wordCount,
+                hyperlinks_found: metadata.hyperlinkCount || 0,
+                github_detected: !!links.github,
+                linkedin_detected: !!links.linkedin,
+                experience_years: resumeData.experience_years,
+                education_level: resumeData.education_level,
+                processing_time_ms: processingTime
+            }
         });
 
     } catch (error: any) {
-        console.error("[API] Analysis Error:", error);
+        console.error(`[API] Analysis failed:`, error);
         return NextResponse.json(
-            { error: error?.message || "Internal Server Error" },
+            { error: error?.message || "Analysis failed" },
             { status: 500 }
         );
     }

@@ -1,3 +1,18 @@
+/**
+ * Scoring Module
+ * 
+ * ATS scoring now uses the Unified Semantic Skill Engine.
+ * All skill matching is done once, then consumed here.
+ */
+
+import {
+    SemanticEngineResult,
+    getMatchPercentages,
+    getMatchedSkills,
+    getMissingSkills,
+    THRESHOLDS
+} from "./semantic-skill-engine";
+
 // Types
 export interface Skills {
     technical: string[];
@@ -19,34 +34,24 @@ export interface ATSResult {
 }
 
 /**
- * Calculate comprehensive ATS score
+ * Calculate ATS score using semantic (AI-interpreted) skill matching
+ * 
+ * Uses the Unified Semantic Skill Engine results.
+ * - "JS" matches "JavaScript" (confidence: 0.95)
+ * - "CLI" matches "Bash" (confidence: 0.91)
+ * 
+ * AI interprets meaning. Code calculates score.
+ * Only matches with status === "matched" are counted.
  */
-export function calculateATSScore(
-    candidateSkills: Skills,
-    jdSkills: Skills,
+export function calculateATSScoreWithSemantic(
+    semanticResult: SemanticEngineResult,
     experienceYears: number,
     requiredExperience: number
 ): ATSResult {
-    // Flatten and normalize skills
-    const candidateTech = new Set(candidateSkills.technical.map(s => s.toLowerCase()));
-    const candidateTools = new Set(candidateSkills.tools.map(s => s.toLowerCase()));
-    const candidateSoft = new Set(candidateSkills.soft.map(s => s.toLowerCase()));
+    // Get match percentages from semantic engine
+    const { skillMatch, toolMatch, softMatch, overallMatch } = getMatchPercentages(semanticResult);
 
-    const jdTech = jdSkills.technical.map(s => s.toLowerCase());
-    const jdTools = jdSkills.tools.map(s => s.toLowerCase());
-    const jdSoft = jdSkills.soft.map(s => s.toLowerCase());
-
-    // Calculate matches
-    const techMatched = jdTech.filter(s => candidateTech.has(s));
-    const toolsMatched = jdTools.filter(s => candidateTools.has(s));
-    const softMatched = jdSoft.filter(s => candidateSoft.has(s));
-
-    // Calculate match percentages
-    const skillMatch = jdTech.length > 0 ? Math.round((techMatched.length / jdTech.length) * 100) : 100;
-    const toolMatch = jdTools.length > 0 ? Math.round((toolsMatched.length / jdTools.length) * 100) : 100;
-    const softMatch = jdSoft.length > 0 ? Math.round((softMatched.length / jdSoft.length) * 100) : 100;
-
-    // Experience match
+    // Experience match (tiered scoring)
     let experienceMatch = 100;
     if (requiredExperience > 0) {
         if (experienceYears >= requiredExperience) {
@@ -60,14 +65,13 @@ export function calculateATSScore(
         }
     }
 
-    // Keyword density bonus (high overlap is good)
-    const totalJdSkills = jdTech.length + jdTools.length;
-    const totalMatched = techMatched.length + toolsMatched.length;
-    const keywordDensity = totalJdSkills > 0
-        ? Math.round((totalMatched / totalJdSkills) * 100)
+    // Keyword density from semantic stats
+    const { total, matched } = semanticResult.stats;
+    const keywordDensity = total > 0
+        ? Math.round((matched / total) * 100)
         : 50;
 
-    // Calculate weighted ATS score
+    // SAME FORMULA - deterministic scoring
     const score = Math.round(
         (skillMatch * 0.35) +
         (toolMatch * 0.25) +
@@ -76,12 +80,11 @@ export function calculateATSScore(
         (keywordDensity * 0.15)
     );
 
-    // Compile matched and missing skills
-    const matchedSkills = [...techMatched, ...toolsMatched];
-    const missingSkills = [
-        ...jdTech.filter(s => !candidateTech.has(s)),
-        ...jdTools.filter(s => !candidateTools.has(s))
-    ];
+    // Get matched and missing from semantic engine (SAME SOURCE)
+    const matchedSkills = getMatchedSkills(semanticResult);
+    const missingSkills = getMissingSkills(semanticResult);
+
+    console.log(`[ATS-Semantic] Score: ${score} | Matched: ${matched}/${total} | Threshold: ${THRESHOLDS.MATCHED}`);
 
     return {
         score: Math.min(Math.max(score, 0), 100),
@@ -98,7 +101,7 @@ export function calculateATSScore(
 }
 
 /**
- * Calculate hiring recommendation
+ * Calculate hiring recommendation based on final score
  */
 export function getHiringRecommendation(finalScore: number): {
     recommendation: "strong_yes" | "yes" | "maybe" | "no";

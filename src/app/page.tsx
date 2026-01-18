@@ -139,8 +139,8 @@ export default function Home() {
                 </label>
                 <label
                   className={`relative border-2 border-dashed rounded-xl p-8 transition-all flex flex-col items-center justify-center text-center cursor-pointer ${file
-                      ? 'border-emerald-500/50 bg-emerald-500/5'
-                      : 'border-white/10 hover:border-indigo-500/50 hover:bg-white/5'
+                    ? 'border-emerald-500/50 bg-emerald-500/5'
+                    : 'border-white/10 hover:border-indigo-500/50 hover:bg-white/5'
                     }`}
                 >
                   <input
@@ -196,6 +196,17 @@ export default function Home() {
                 </div>
                 <div className="absolute inset-0 bg-white/20 translate-y-full transition-transform group-hover:translate-y-0" />
               </button>
+
+              {/* Batch Processing Link */}
+              <div className="text-center pt-4 border-t border-white/5">
+                <a
+                  href="/batch"
+                  className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-indigo-400 transition-colors"
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  Enterprise Mode: Analyze up to 50 resumes at once →
+                </a>
+              </div>
             </motion.form>
           </motion.div>
         )}

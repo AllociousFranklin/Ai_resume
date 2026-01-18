@@ -18,10 +18,11 @@ import {
     ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import CandidateActions from "./CandidateActions";
 
 interface DashboardProps {
     data: any;
-    onReset: () => void;
+    onReset?: () => void;
 }
 
 export default function Dashboard({ data, onReset }: DashboardProps) {
@@ -55,12 +56,29 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
                         Processed in {data.processing_time_ms}ms
                     </p>
                 </div>
-                <button
-                    onClick={onReset}
-                    className="px-4 py-2 bg-secondary hover:bg-muted text-sm rounded-lg transition-colors"
-                >
-                    Analyze Another
-                </button>
+                {onReset && (
+                    <button
+                        onClick={onReset}
+                        className="px-4 py-2 bg-secondary hover:bg-muted text-sm rounded-lg transition-colors"
+                    >
+                        Analyze Another
+                    </button>
+                )}
+            </motion.div>
+
+            {/* Candidate Actions - Interview Scheduling, Verification, etc. */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+            >
+                <CandidateActions
+                    candidateName={data.metadata?.candidate_name || null}
+                    candidateEmail={data.metadata?.candidate_email || null}
+                    recommendation={data.recommendation?.recommendation || "maybe"}
+                    githubUsername={data.github?.username || null}
+                    finalScore={data.final_score}
+                />
             </motion.div>
 
             {/* Main Score Card */}
@@ -294,21 +312,21 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <PredictionCard
                             title="Success Probability"
-                            value={`${Math.round(data.predictions.success.probability * 100)}%`}
-                            confidence={data.predictions.success.confidence}
+                            value={`${Math.round((data.predictions?.success?.probability || 0.65) * 100)}%`}
+                            confidence={data.predictions?.success?.confidence}
                         />
                         <PredictionCard
                             title="2-Year Retention"
-                            value={`${Math.round(data.predictions.retention.two_year_probability * 100)}%`}
+                            value={`${Math.round((data.predictions?.retention?.two_year_probability || data.predictions?.retention?.twoYearProbability || 0.7) * 100)}%`}
                         />
                         <PredictionCard
                             title="Growth Potential"
-                            value={data.predictions.growth.trajectory}
+                            value={data.predictions?.growth?.trajectory || 'moderate'}
                             isText
                         />
                         <PredictionCard
                             title="Ramp-up Time"
-                            value={`${data.predictions.ramp_up.weeks} weeks`}
+                            value={`${data.predictions?.rampUp?.weeksToProductivity || data.predictions?.ramp_up?.weeks || 5} weeks`}
                         />
                     </div>
 
