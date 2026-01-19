@@ -19,6 +19,11 @@ export interface GitHubAnalysis {
         contributionStreak: number;
         topLanguage: string | null;
         languageDistribution: Record<string, number>;
+        // Enhanced metadata
+        totalRepoSize: number; // in KB
+        reposWithDescription: number;
+        repoNames: string[];
+        repoDescriptions: string[];
     };
     velocity: {
         score: number; // 0-100
@@ -64,6 +69,10 @@ export async function analyzeGitHub(username: string): Promise<GitHubAnalysis> {
         let forks = 0;
         let totalStars = 0;
         let activeRepos = 0;
+        let totalRepoSize = 0;
+        let reposWithDescription = 0;
+        const repoNames: string[] = [];
+        const repoDescriptions: string[] = [];
         const languages = new Map<string, number>();
         const reposByYear = new Map<string, number>();
         const languagesByYear = new Map<string, Set<string>>();
@@ -75,6 +84,13 @@ export async function analyzeGitHub(username: string): Promise<GitHubAnalysis> {
                 forks++;
             } else {
                 originalRepos++;
+                // Collect metadata for original repos only
+                repoNames.push(repo.name.toLowerCase());
+                if (repo.description) {
+                    reposWithDescription++;
+                    repoDescriptions.push(repo.description.toLowerCase());
+                }
+                totalRepoSize += repo.size || 0;
             }
 
             totalStars += repo.stargazers_count || 0;
@@ -205,7 +221,11 @@ export async function analyzeGitHub(username: string): Promise<GitHubAnalysis> {
                 accountAge: accountAgeMonths,
                 contributionStreak: recentPushEvents.length,
                 topLanguage,
-                languageDistribution
+                languageDistribution,
+                totalRepoSize,
+                reposWithDescription,
+                repoNames,
+                repoDescriptions
             },
             velocity: {
                 score: velocityScore,
@@ -240,7 +260,11 @@ function getEmptyAnalysis(reason: string): GitHubAnalysis {
             accountAge: 0,
             contributionStreak: 0,
             topLanguage: null,
-            languageDistribution: {}
+            languageDistribution: {},
+            totalRepoSize: 0,
+            reposWithDescription: 0,
+            repoNames: [],
+            repoDescriptions: []
         },
         velocity: {
             score: 0,

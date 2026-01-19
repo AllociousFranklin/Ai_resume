@@ -13,6 +13,7 @@ export interface ExtractedSkills {
   soft: string[];
   experience_years: number;
   education_level: string;
+  projects: string[];
 }
 
 export interface ResumeQuality {
@@ -46,6 +47,7 @@ export interface CombinedExtraction {
     resumeSkill: string | null;
     confidence: number;
     category: "technical" | "tools" | "soft";
+    priority: "critical" | "preferred" | "bonus";
   }>;
 }
 
@@ -82,6 +84,8 @@ Perform a comprehensive analysis including:
 4. Write a 2-3 sentence AI assessment explaining how well this candidate fits the role
 5. Semantic Match: Map EVERY skill in the "jd" section to a matching skill in "resume" (or null if missing).
 6. Job Classification: Classify the job into "technical", "creative", or "general".
+7. Skill Priority: For EACH JD skill, classify as "critical", "preferred", or "bonus".
+8. Extract project names/titles from the resume (for GitHub verification).
 
 Return ONLY a valid JSON object with this EXACT structure:
 {
@@ -90,7 +94,8 @@ Return ONLY a valid JSON object with this EXACT structure:
         "tools": ["tool1", "tool2"],
         "soft": ["skill1", "skill2"],
         "experience_years": 0,
-        "education_level": "bachelors"
+        "education_level": "bachelors",
+        "projects": ["project name 1", "project name 2"]
     },
     "jd": {
         "technical": ["skill1", "skill2"],
@@ -113,8 +118,8 @@ Return ONLY a valid JSON object with this EXACT structure:
     "explanation": "This candidate demonstrates...",
     "job_category": "technical",
     "matches": [
-        { "jdSkill": "React", "resumeSkill": "React.js", "confidence": 1.0, "category": "technical" },
-        { "jdSkill": "AWS", "resumeSkill": null, "confidence": 0.0, "category": "technical" }
+        { "jdSkill": "React", "resumeSkill": "React.js", "confidence": 1.0, "category": "technical", "priority": "critical" },
+        { "jdSkill": "AWS", "resumeSkill": null, "confidence": 0.0, "category": "technical", "priority": "preferred" }
     ]
 }
 
@@ -122,6 +127,11 @@ JOB CATEGORIES:
 - "technical": Software Engineering, Data Science, DevOps, IT, Cybersecurity. (GitHub Critical)
 - "creative": Design, UX/UI, Content Creation, Marketing. (Portfolio Critical)
 - "general": Business, Sales, HR, Management, Operations. (LinkedIn/Experience Critical)
+
+SKILL PRIORITY (for matches):
+- "critical": Must-have skills explicitly required. Weight: 2x
+- "preferred": Nice-to-have or frequently mentioned. Weight: 1x
+- "bonus": Extra skills that add value. Weight: 0.5x
 
 MATCHING GUIDELINES:
 - For EACH JD skill, find the best matching skill in the resume.
@@ -185,7 +195,8 @@ ${jdText.substring(0, 10000)}
         tools: parsed.resume?.tools || [],
         soft: parsed.resume?.soft || [],
         experience_years: parsed.resume?.experience_years || 0,
-        education_level: parsed.resume?.education_level || "unknown"
+        education_level: parsed.resume?.education_level || "unknown",
+        projects: parsed.resume?.projects || []
       },
       jd: {
         technical: parsed.jd?.technical || [],
@@ -279,7 +290,7 @@ Return JSON only:
 
 function getDefaultExtraction(): CombinedExtraction {
   return {
-    resume: { technical: [], tools: [], soft: [], experience_years: 0, education_level: "unknown" },
+    resume: { technical: [], tools: [], soft: [], experience_years: 0, education_level: "unknown", projects: [] },
     jd: { technical: [], tools: [], soft: [], required_experience: 0 },
     quality: { score: 50, formatting: 50, achievements: 50, clarity: 50, improvements: [] },
     cluster: { type: "generalist", confidence: 0.5, traits: [] },

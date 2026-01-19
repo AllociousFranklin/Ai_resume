@@ -14,10 +14,15 @@ import {
     CheckCircle,
     Eye,
     ArrowLeft,
-    RefreshCw
+    RefreshCw,
+    GitCompare,
+    Download
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Dashboard from "@/components/Dashboard";
+import { ComparisonView } from "@/components/ComparisonView";
+import { ScoreGauge } from "@/components/visualizations/Charts";
+import { generateCandidateReport } from "@/lib/pdf-export";
 
 interface CandidateResult {
     candidateId: string;
@@ -57,6 +62,9 @@ export default function BatchPage() {
     const [batchResult, setBatchResult] = useState<BatchResult | null>(null);
     const [selectedCandidate, setSelectedCandidate] = useState<CandidateResult | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [compareMode, setCompareMode] = useState(false);
+    const [selectedForCompare, setSelectedForCompare] = useState<CandidateResult[]>([]);
+    const [showComparison, setShowComparison] = useState(false);
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
         const validFiles = acceptedFiles.filter(
@@ -197,16 +205,41 @@ export default function BatchPage() {
                                     {batchResult.processed} candidates processed in {(batchResult.processingTimeMs / 1000).toFixed(1)}s
                                 </p>
                             </div>
-                            <button
-                                onClick={() => {
-                                    setBatchResult(null);
-                                    setFiles([]);
-                                    setJdText("");
-                                }}
-                                className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors"
-                            >
-                                New Batch
-                            </button>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => {
+                                        setCompareMode(!compareMode);
+                                        setSelectedForCompare([]);
+                                    }}
+                                    className={cn(
+                                        "flex items-center gap-2 px-4 py-2 rounded-lg transition-colors",
+                                        compareMode
+                                            ? "bg-primary text-white"
+                                            : "bg-gray-800 hover:bg-gray-700 text-white"
+                                    )}
+                                >
+                                    <GitCompare className="w-4 h-4" />
+                                    {compareMode ? "Cancel Compare" : "Compare"}
+                                </button>
+                                {compareMode && selectedForCompare.length === 2 && (
+                                    <button
+                                        onClick={() => setShowComparison(true)}
+                                        className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/80 text-white rounded-lg transition-colors"
+                                    >
+                                        View Comparison
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => {
+                                        setBatchResult(null);
+                                        setFiles([]);
+                                        setJdText("");
+                                    }}
+                                    className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                                >
+                                    New Batch
+                                </button>
+                            </div>
                         </div>
 
                         {/* Stats */}
@@ -235,6 +268,11 @@ export default function BatchPage() {
                         <table className="w-full">
                             <thead>
                                 <tr className="bg-gray-800/50 border-b border-gray-700/50">
+                                    {compareMode && (
+                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">
+                                            Compare
+                                        </th>
+                                    )}
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Rank</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Candidate</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Score</th>
@@ -253,9 +291,27 @@ export default function BatchPage() {
                                         transition={{ delay: idx * 0.05 }}
                                         className={cn(
                                             "border-b border-gray-700/30 hover:bg-gray-700/20 transition-colors",
-                                            candidate.status === "failed" && "opacity-60"
+                                            candidate.status === "failed" && "opacity-60",
+                                            selectedForCompare.some(c => c.candidateId === candidate.candidateId) && "bg-primary/10"
                                         )}
                                     >
+                                        {compareMode && (
+                                            <td className="px-4 py-4">
+                                                <input
+                                                    type="checkbox"
+                                                    disabled={candidate.status !== "success" || (selectedForCompare.length >= 2 && !selectedForCompare.some(c => c.candidateId === candidate.candidateId))}
+                                                    checked={selectedForCompare.some(c => c.candidateId === candidate.candidateId)}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            setSelectedForCompare(prev => [...prev, candidate].slice(0, 2));
+                                                        } else {
+                                                            setSelectedForCompare(prev => prev.filter(c => c.candidateId !== candidate.candidateId));
+                                                        }
+                                                    }}
+                                                    className="w-5 h-5 rounded border-gray-600 bg-gray-800 text-primary focus:ring-primary cursor-pointer"
+                                                />
+                                            </td>
+                                        )}
                                         <td className="px-4 py-4">
                                             <span className={cn(
                                                 "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold",
@@ -330,6 +386,45 @@ export default function BatchPage() {
                         </table>
                     </div>
                 </div>
+
+                {/* Comparison Modal */}
+                <AnimatePresence>
+                    {showComparison && selectedForCompare.length === 2 && (
+                        <ComparisonView
+                            candidate1={{
+                                name: selectedForCompare[0].name || "Candidate 1",
+                                score: selectedForCompare[0].finalScore,
+                                atsScore: selectedForCompare[0].fullAnalysis?.ats?.score || 0,
+                                githubScore: selectedForCompare[0].fullAnalysis?.github?.score || 0,
+                                proofScore: selectedForCompare[0].fullAnalysis?.proof?.score || 0,
+                                qualityScore: selectedForCompare[0].fullAnalysis?.quality?.score || 0,
+                                skillBreakdown: {
+                                    technical: selectedForCompare[0].fullAnalysis?.ats?.breakdown?.skillMatch || 50,
+                                    tools: selectedForCompare[0].fullAnalysis?.ats?.breakdown?.toolMatch || 50,
+                                    soft: selectedForCompare[0].fullAnalysis?.ats?.breakdown?.softMatch || 50,
+                                },
+                                matchedSkills: selectedForCompare[0].fullAnalysis?.ats?.matched_skills || [],
+                                missingSkills: selectedForCompare[0].fullAnalysis?.ats?.missing_skills || [],
+                            }}
+                            candidate2={{
+                                name: selectedForCompare[1].name || "Candidate 2",
+                                score: selectedForCompare[1].finalScore,
+                                atsScore: selectedForCompare[1].fullAnalysis?.ats?.score || 0,
+                                githubScore: selectedForCompare[1].fullAnalysis?.github?.score || 0,
+                                proofScore: selectedForCompare[1].fullAnalysis?.proof?.score || 0,
+                                qualityScore: selectedForCompare[1].fullAnalysis?.quality?.score || 0,
+                                skillBreakdown: {
+                                    technical: selectedForCompare[1].fullAnalysis?.ats?.breakdown?.skillMatch || 50,
+                                    tools: selectedForCompare[1].fullAnalysis?.ats?.breakdown?.toolMatch || 50,
+                                    soft: selectedForCompare[1].fullAnalysis?.ats?.breakdown?.softMatch || 50,
+                                },
+                                matchedSkills: selectedForCompare[1].fullAnalysis?.ats?.matched_skills || [],
+                                missingSkills: selectedForCompare[1].fullAnalysis?.ats?.missing_skills || [],
+                            }}
+                            onClose={() => setShowComparison(false)}
+                        />
+                    )}
+                </AnimatePresence>
             </div>
         );
     }

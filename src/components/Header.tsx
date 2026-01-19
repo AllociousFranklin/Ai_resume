@@ -9,13 +9,16 @@ import {
     LogIn,
     LogOut,
     User,
-    BarChart3
+    Sun,
+    Moon
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import { cn } from "@/lib/utils";
 
 export default function Header() {
     const { user, logout } = useAuth();
+    const { theme, toggleTheme } = useTheme();
     const pathname = usePathname();
 
     const isActive = (path: string) => pathname === path;
@@ -24,14 +27,14 @@ export default function Header() {
         <motion.header
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="fixed top-0 left-0 right-0 z-50 bg-gray-950/80 backdrop-blur-xl border-b border-white/5"
+            className="fixed top-0 left-0 right-0 z-50 bg-card/80 backdrop-blur-xl border-b border-border"
         >
             <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
                 {/* Logo */}
                 <Link href="/" className="flex items-center gap-2 group">
-                    <Sparkles className="w-5 h-5 text-indigo-400 group-hover:text-indigo-300 transition-colors" />
+                    <Sparkles className="w-5 h-5 text-primary group-hover:text-primary/80 transition-colors" />
                     <span className="font-bold text-lg">
-                        Skill<span className="text-indigo-500">Snap</span>
+                        Skill<span className="text-primary">Snap</span>
                     </span>
                 </Link>
 
@@ -42,8 +45,8 @@ export default function Header() {
                         className={cn(
                             "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
                             isActive("/")
-                                ? "bg-indigo-500/20 text-indigo-400"
-                                : "text-gray-400 hover:text-white hover:bg-white/5"
+                                ? "bg-primary/20 text-primary"
+                                : "text-muted-foreground hover:text-foreground hover:bg-muted"
                         )}
                     >
                         Analyze
@@ -53,8 +56,8 @@ export default function Header() {
                         className={cn(
                             "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5",
                             isActive("/batch")
-                                ? "bg-indigo-500/20 text-indigo-400"
-                                : "text-gray-400 hover:text-white hover:bg-white/5"
+                                ? "bg-primary/20 text-primary"
+                                : "text-muted-foreground hover:text-foreground hover:bg-muted"
                         )}
                     >
                         <Users className="w-4 h-4" />
@@ -62,17 +65,30 @@ export default function Header() {
                     </Link>
                 </nav>
 
-                {/* Auth */}
+                {/* Theme Toggle + Auth */}
                 <div className="flex items-center gap-3">
+                    {/* Theme Toggle */}
+                    <button
+                        onClick={toggleTheme}
+                        className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        aria-label="Toggle theme"
+                    >
+                        {theme === "dark" ? (
+                            <Sun className="w-5 h-5" />
+                        ) : (
+                            <Moon className="w-5 h-5" />
+                        )}
+                    </button>
+
                     {user ? (
                         <div className="flex items-center gap-3">
-                            <div className="hidden md:flex items-center gap-2 text-sm text-gray-400">
+                            <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
                                 <User className="w-4 h-4" />
                                 {user.email?.split("@")[0]}
                             </div>
                             <button
                                 onClick={() => logout()}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 rounded-lg transition-colors"
                             >
                                 <LogOut className="w-4 h-4" />
                                 <span className="hidden md:inline">Sign Out</span>
@@ -81,7 +97,7 @@ export default function Header() {
                     ) : (
                         <Link
                             href="/login"
-                            className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 rounded-lg transition-colors"
+                            className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium bg-primary/20 text-primary hover:bg-primary/30 rounded-lg transition-colors"
                         >
                             <LogIn className="w-4 h-4" />
                             Sign In
@@ -92,3 +108,4 @@ export default function Header() {
         </motion.header>
     );
 }
+

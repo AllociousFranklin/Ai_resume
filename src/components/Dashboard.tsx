@@ -15,10 +15,14 @@ import {
     Clock,
     User,
     Sparkles,
-    ChevronRight
+    ChevronRight,
+    Download
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CandidateActions from "./CandidateActions";
+import { ScoreGauge, AnimatedProgressBar, SkillRadarChart } from "./visualizations/Charts";
+import { ExplainableAIPanel } from "./ExplainableAIPanel";
+import { generateCandidateReport } from "@/lib/pdf-export";
 
 interface DashboardProps {
     data: any;
@@ -56,14 +60,37 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
                         Processed in {data.processing_time_ms}ms
                     </p>
                 </div>
-                {onReset && (
+                <div className="flex items-center gap-3">
                     <button
-                        onClick={onReset}
-                        className="px-4 py-2 bg-secondary hover:bg-muted text-sm rounded-lg transition-colors"
+                        onClick={() => generateCandidateReport({
+                            name: data.metadata?.candidate_name || "Candidate",
+                            email: data.metadata?.candidate_email,
+                            phone: data.metadata?.candidate_phone,
+                            finalScore: data.final_score,
+                            recommendation: data.recommendation?.label || "Review",
+                            atsScore: data.ats?.score || 0,
+                            githubScore: data.github?.score || 0,
+                            proofScore: data.proof?.score || 0,
+                            qualityScore: data.quality?.score || 0,
+                            matchedSkills: data.ats?.matched_skills || [],
+                            missingSkills: data.ats?.missing_skills || [],
+                            explanation: data.explanation || "",
+                            githubProof: data.github?.proof || [],
+                        })}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary/20 hover:bg-primary/30 text-primary text-sm rounded-lg transition-colors"
                     >
-                        Analyze Another
+                        <Download className="w-4 h-4" />
+                        Export PDF
                     </button>
-                )}
+                    {onReset && (
+                        <button
+                            onClick={onReset}
+                            className="px-4 py-2 bg-secondary hover:bg-muted text-sm rounded-lg transition-colors"
+                        >
+                            Analyze Another
+                        </button>
+                    )}
+                </div>
             </motion.div>
 
             {/* Candidate Actions - Interview Scheduling, Verification, etc. */}
@@ -81,7 +108,7 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
                 />
             </motion.div>
 
-            {/* Main Score Card */}
+            {/* Main Score Card with Animated Gauge */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
@@ -93,14 +120,15 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
                     )}
                 >
                     <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-cyan-500/10 z-0" />
-                    <h3 className="text-muted-foreground uppercase tracking-widest text-xs font-semibold z-10">
-                        Fit Score
-                    </h3>
-                    <div className={cn("text-6xl md:text-7xl font-black mt-2 mb-1 z-10", getScoreColor(data.final_score))}>
-                        {data.final_score}
+                    <div className="z-10">
+                        <ScoreGauge
+                            score={data.final_score}
+                            label="Fit Score"
+                            size="lg"
+                        />
                     </div>
                     <div className={cn(
-                        "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide z-10",
+                        "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide z-10 mt-2",
                         recommendation?.color === "emerald" && "bg-emerald-500/20 text-emerald-400",
                         recommendation?.color === "green" && "bg-green-500/20 text-green-400",
                         recommendation?.color === "amber" && "bg-amber-500/20 text-amber-400",
@@ -169,20 +197,25 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
 
             {/* Two Column Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* AI Explanation */}
+                {/* Explainable AI Panel */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
-                    className="glass-card p-6 rounded-xl"
                 >
-                    <h3 className="text-lg font-bold flex items-center gap-2 mb-4 text-indigo-400">
-                        <Sparkles className="w-5 h-5" />
-                        AI Assessment
-                    </h3>
-                    <p className="text-base leading-relaxed text-gray-300">
-                        {data.explanation}
-                    </p>
+                    <ExplainableAIPanel
+                        explanation={data.explanation || "Analysis complete."}
+                        matchedSkills={data.ats?.matched_skills || []}
+                        missingSkills={data.ats?.missing_skills || []}
+                        criticalMisses={data.gap_analysis?.critical_gaps || []}
+                        proofEvidence={{
+                            proven: data.proof?.proven || [],
+                            inferred: data.proof?.inferred || [],
+                            missing: data.proof?.missing || []
+                        }}
+                        githubProof={data.github?.proof || []}
+                        recommendation={data.recommendation || { label: "Review", recommendation: "review" }}
+                    />
                 </motion.div>
 
                 {/* Skills Gap */}
@@ -226,6 +259,55 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
                     )}
                 </motion.div>
             </div>
+
+            {/* Skills Radar Chart */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.48 }}
+                className="glass-card p-6 rounded-xl"
+            >
+                <h3 className="text-lg font-bold flex items-center gap-2 mb-4 text-primary">
+                    <BarChart3 className="w-5 h-5" />
+                    Skills Profile
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                    <div className="flex justify-center">
+                        <SkillRadarChart
+                            data={[
+                                { name: "Technical", value: data.ats?.breakdown?.skillMatch || 50 },
+                                { name: "Tools", value: data.ats?.breakdown?.toolMatch || 50 },
+                                { name: "Soft", value: data.ats?.breakdown?.softMatch || 50 },
+                                { name: "GitHub", value: data.github?.score || 0 },
+                                { name: "Quality", value: data.quality?.score || 50 },
+                            ]}
+                            size={220}
+                        />
+                    </div>
+                    <div className="space-y-3">
+                        <AnimatedProgressBar
+                            value={data.ats?.breakdown?.skillMatch || 0}
+                            label="Technical Skills"
+                            color="primary"
+                        />
+                        <AnimatedProgressBar
+                            value={data.ats?.breakdown?.toolMatch || 0}
+                            label="Tools & Platforms"
+                            color="primary"
+                        />
+                        <AnimatedProgressBar
+                            value={data.ats?.breakdown?.softMatch || 0}
+                            label="Soft Skills"
+                            color="primary"
+                        />
+                        <AnimatedProgressBar
+                            value={data.github?.score || 0}
+                            label="GitHub Activity"
+                            color={data.github?.score >= 70 ? "success" : data.github?.score >= 40 ? "warning" : "danger"}
+                        />
+                    </div>
+                </div>
+            </motion.div>
 
             {/* GitHub & Growth Analysis */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -448,22 +530,64 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
 
 // Sub-components
 function ScoreCard({ title, value, icon, delay }: { title: string; value: number; icon: any; delay: number }) {
-    const getColor = (v: number) => v >= 70 ? "text-emerald-400" : v >= 50 ? "text-amber-400" : "text-rose-400";
+    const getColor = (v: number) => v >= 70 ? "#22c55e" : v >= 50 ? "#f59e0b" : "#ef4444";
+    const radius = 32;
+    const circumference = 2 * Math.PI * radius;
+    const progress = (value / 100) * circumference;
 
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay }}
-            className="bg-card/50 border border-white/5 p-4 rounded-xl"
+            className="bg-card/50 border border-white/5 p-4 rounded-xl flex flex-col items-center"
         >
-            <div className="flex items-center justify-between mb-2">
-                <p className="text-muted-foreground text-xs uppercase font-semibold">{title}</p>
-                <div className="p-2 bg-white/5 rounded-lg text-indigo-400">
-                    {icon}
+            {/* Animated Gauge */}
+            <div className="relative w-20 h-20 mb-2">
+                <svg width="80" height="80" className="transform -rotate-90">
+                    {/* Background circle */}
+                    <circle
+                        cx="40"
+                        cy="40"
+                        r={radius}
+                        fill="none"
+                        stroke="var(--muted)"
+                        strokeWidth={6}
+                        opacity={0.2}
+                    />
+                    {/* Progress circle */}
+                    <motion.circle
+                        cx="40"
+                        cy="40"
+                        r={radius}
+                        fill="none"
+                        stroke={getColor(value)}
+                        strokeWidth={6}
+                        strokeLinecap="round"
+                        strokeDasharray={circumference}
+                        initial={{ strokeDashoffset: circumference }}
+                        animate={{ strokeDashoffset: circumference - progress }}
+                        transition={{ duration: 1, ease: "easeOut", delay: delay }}
+                    />
+                </svg>
+                {/* Score in center */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <motion.span
+                        className="text-xl font-bold"
+                        style={{ color: getColor(value) }}
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: delay + 0.5, duration: 0.3 }}
+                    >
+                        {value}
+                    </motion.span>
                 </div>
             </div>
-            <p className={cn("text-3xl font-bold", getColor(value))}>{value}</p>
+            {/* Title with icon */}
+            <div className="flex items-center gap-1.5">
+                <div className="text-indigo-400">{icon}</div>
+                <p className="text-muted-foreground text-xs font-semibold">{title}</p>
+            </div>
         </motion.div>
     );
 }

@@ -30,105 +30,331 @@ export interface ProjectDepth {
 }
 
 /**
- * Verify skills against GitHub proof
+ * Verify skills against GitHub proof using LANGUAGE-BASED verification only
+ * 
+ * Categories:
+ * - PROVEN: Skill IS a GitHub language directly detected (Python, Java, etc.)
+ * - INFERRED: Skill is a framework/library that requires a detected language (React → JS/TS)
+ * - UNVERIFIED: No GitHub language evidence found
+ * 
+ * Scoring:
+ * - Direct language match: 100 points (full proof)
+ * - Framework inference: 70 points (strong inference)
+ * - Tool with language proxy: 50 points (partial proof)
+ * - No match: 0 points
  */
 export function verifySkills(claimedSkills: string[], githubStats: GitHubAnalysis): SkillVerification {
     const proven: string[] = [];
-    const missing: string[] = [];
     const inferred: string[] = [];
+    const missing: string[] = [];
 
+    // Get GitHub's detected languages (the ONLY reliable source)
     const githubLanguages = new Set(
         (githubStats?.stats?.languages || []).map((l: string) => l.toLowerCase())
     );
 
-    // Skill to language mapping for inference
-    const skillMappings: Record<string, string[]> = {
-        "react": ["javascript", "typescript"],
-        "react.js": ["javascript", "typescript"],
-        "next.js": ["javascript", "typescript"],
-        "nextjs": ["javascript", "typescript"],
-        "vue": ["javascript", "typescript"],
-        "vue.js": ["javascript", "typescript"],
-        "angular": ["javascript", "typescript"],
-        "node.js": ["javascript", "typescript"],
-        "nodejs": ["javascript", "typescript"],
-        "express": ["javascript", "typescript"],
-        "express.js": ["javascript", "typescript"],
-        "django": ["python"],
-        "flask": ["python"],
-        "fastapi": ["python"],
-        "pandas": ["python"],
-        "numpy": ["python"],
-        "tensorflow": ["python"],
-        "pytorch": ["python"],
-        "spring": ["java", "kotlin"],
-        "spring boot": ["java", "kotlin"],
-        "rails": ["ruby"],
-        "ruby on rails": ["ruby"],
-        "laravel": ["php"],
-        "asp.net": ["c#"],
-        ".net": ["c#"],
-        "unity": ["c#"],
-        "flutter": ["dart"],
-        "android": ["java", "kotlin"],
-        "ios": ["swift", "objective-c"],
-        "swiftui": ["swift"],
-        "tailwind": ["javascript", "typescript", "html"],
-        "sass": ["css", "scss"],
-        "graphql": ["javascript", "typescript"],
-        "mongodb": ["javascript", "typescript", "python"],
-        "postgresql": ["javascript", "typescript", "python", "go"],
-        "docker": ["dockerfile", "shell"],
-        "kubernetes": ["yaml", "go"],
-        "aws": ["python", "javascript", "typescript"],
-        "terraform": ["hcl"],
+    // Comprehensive skill → required language mappings
+    const skillToLanguage: Record<string, { languages: string[], weight: number }> = {
+        // JavaScript/TypeScript ecosystem (full weight - 70)
+        "react": { languages: ["javascript", "typescript"], weight: 70 },
+        "react.js": { languages: ["javascript", "typescript"], weight: 70 },
+        "reactjs": { languages: ["javascript", "typescript"], weight: 70 },
+        "next.js": { languages: ["javascript", "typescript"], weight: 70 },
+        "nextjs": { languages: ["javascript", "typescript"], weight: 70 },
+        "vue": { languages: ["javascript", "typescript"], weight: 70 },
+        "vue.js": { languages: ["javascript", "typescript"], weight: 70 },
+        "vuejs": { languages: ["javascript", "typescript"], weight: 70 },
+        "angular": { languages: ["javascript", "typescript"], weight: 70 },
+        "svelte": { languages: ["javascript", "typescript"], weight: 70 },
+        "node.js": { languages: ["javascript", "typescript"], weight: 70 },
+        "nodejs": { languages: ["javascript", "typescript"], weight: 70 },
+        "node": { languages: ["javascript", "typescript"], weight: 70 },
+        "express": { languages: ["javascript", "typescript"], weight: 70 },
+        "express.js": { languages: ["javascript", "typescript"], weight: 70 },
+        "nestjs": { languages: ["typescript"], weight: 70 },
+        "graphql": { languages: ["javascript", "typescript"], weight: 70 },
+        "redux": { languages: ["javascript", "typescript"], weight: 70 },
+        "jquery": { languages: ["javascript"], weight: 70 },
+        "webpack": { languages: ["javascript", "typescript"], weight: 50 },
+        "vite": { languages: ["javascript", "typescript"], weight: 50 },
+        "tailwind": { languages: ["javascript", "typescript", "html", "css"], weight: 50 },
+        "tailwindcss": { languages: ["javascript", "typescript", "html", "css"], weight: 50 },
+
+        // Python ecosystem
+        "django": { languages: ["python"], weight: 70 },
+        "flask": { languages: ["python"], weight: 70 },
+        "fastapi": { languages: ["python"], weight: 70 },
+        "pandas": { languages: ["python"], weight: 70 },
+        "numpy": { languages: ["python"], weight: 70 },
+        "tensorflow": { languages: ["python"], weight: 70 },
+        "pytorch": { languages: ["python"], weight: 70 },
+        "keras": { languages: ["python"], weight: 70 },
+        "scikit-learn": { languages: ["python"], weight: 70 },
+        "sklearn": { languages: ["python"], weight: 70 },
+        "opencv": { languages: ["python", "c++"], weight: 70 },
+        "beautifulsoup": { languages: ["python"], weight: 70 },
+        "selenium": { languages: ["python", "java"], weight: 70 },
+        "streamlit": { languages: ["python"], weight: 70 },
+
+        // Java/Kotlin ecosystem
+        "spring": { languages: ["java", "kotlin"], weight: 70 },
+        "spring boot": { languages: ["java", "kotlin"], weight: 70 },
+        "springboot": { languages: ["java", "kotlin"], weight: 70 },
+        "hibernate": { languages: ["java"], weight: 70 },
+        "maven": { languages: ["java"], weight: 50 },
+        "gradle": { languages: ["java", "kotlin", "groovy"], weight: 50 },
+        "android": { languages: ["java", "kotlin"], weight: 70 },
+
+        // C#/.NET ecosystem
+        "asp.net": { languages: ["c#"], weight: 70 },
+        ".net": { languages: ["c#"], weight: 70 },
+        "dotnet": { languages: ["c#"], weight: 70 },
+        "unity": { languages: ["c#"], weight: 70 },
+        "xamarin": { languages: ["c#"], weight: 70 },
+        "blazor": { languages: ["c#"], weight: 70 },
+
+        // Ruby ecosystem
+        "rails": { languages: ["ruby"], weight: 70 },
+        "ruby on rails": { languages: ["ruby"], weight: 70 },
+        "sinatra": { languages: ["ruby"], weight: 70 },
+
+        // PHP ecosystem
+        "laravel": { languages: ["php"], weight: 70 },
+        "symfony": { languages: ["php"], weight: 70 },
+        "wordpress": { languages: ["php"], weight: 70 },
+
+        // Go ecosystem
+        "gin": { languages: ["go"], weight: 70 },
+        "golang": { languages: ["go"], weight: 100 }, // Direct alias
+
+        // Rust ecosystem
+        "actix": { languages: ["rust"], weight: 70 },
+        "tokio": { languages: ["rust"], weight: 70 },
+
+        // Mobile
+        "flutter": { languages: ["dart"], weight: 70 },
+        "react native": { languages: ["javascript", "typescript"], weight: 70 },
+        "swiftui": { languages: ["swift"], weight: 70 },
+        "ios": { languages: ["swift", "objective-c"], weight: 70 },
+
+        // DevOps/Cloud (partial weight - 50, as these often exist without code)
+        "docker": { languages: ["dockerfile", "shell", "python", "go"], weight: 50 },
+        "kubernetes": { languages: ["yaml", "go", "python"], weight: 50 },
+        "terraform": { languages: ["hcl"], weight: 50 },
+        "ansible": { languages: ["yaml", "python"], weight: 50 },
+        "aws": { languages: ["python", "javascript", "typescript", "go"], weight: 50 },
+        "azure": { languages: ["python", "javascript", "c#"], weight: 50 },
+        "gcp": { languages: ["python", "go", "javascript"], weight: 50 },
+        "ci/cd": { languages: ["yaml", "shell"], weight: 50 },
+
+        // Databases (partial weight - 50)
+        "mongodb": { languages: ["javascript", "typescript", "python"], weight: 50 },
+        "postgresql": { languages: ["sql", "python", "javascript"], weight: 50 },
+        "mysql": { languages: ["sql", "python", "javascript", "php"], weight: 50 },
+        "redis": { languages: ["python", "javascript", "go"], weight: 50 },
+        "firebase": { languages: ["javascript", "typescript"], weight: 50 },
+
+        // Data/ML
+        "machine learning": { languages: ["python", "r"], weight: 70 },
+        "deep learning": { languages: ["python"], weight: 70 },
+        "data science": { languages: ["python", "r"], weight: 70 },
+        "nlp": { languages: ["python"], weight: 70 },
+        "computer vision": { languages: ["python", "c++"], weight: 70 },
     };
+
+    // Direct language aliases (100 weight - these ARE the language)
+    const directLanguages = new Set([
+        "python", "javascript", "typescript", "java", "c++", "c#", "c",
+        "go", "rust", "ruby", "php", "swift", "kotlin", "scala", "r",
+        "dart", "html", "css", "sql", "shell", "bash", "powershell"
+    ]);
+
+    let totalScore = 0;
 
     claimedSkills.forEach(skill => {
         const s = skill.toLowerCase().trim();
+        let score = 0;
+        let category: "proven" | "inferred" | "missing" = "missing";
 
-        // Direct language match
-        if (githubLanguages.has(s)) {
-            proven.push(skill);
-            return;
+        // Check 1: Direct language match (100% proof)
+        if (directLanguages.has(s) && githubLanguages.has(s)) {
+            score = 100;
+            category = "proven";
         }
-
-        // Check if skill can be inferred from languages
-        const mappedLanguages = skillMappings[s];
-        if (mappedLanguages) {
-            const hasLanguage = mappedLanguages.some(lang => githubLanguages.has(lang));
+        // Check 2: Framework/tool inference
+        else if (skillToLanguage[s]) {
+            const mapping = skillToLanguage[s];
+            const hasLanguage = mapping.languages.some(lang => githubLanguages.has(lang));
             if (hasLanguage) {
-                inferred.push(skill);
-                return;
+                score = mapping.weight;
+                category = mapping.weight >= 70 ? "inferred" : "inferred";
             }
         }
-
-        // Check partial matches (e.g., "React Native" matches if "javascript" exists)
-        const words = s.split(/\s+/);
-        for (const word of words) {
-            if (skillMappings[word]) {
-                const hasLang = skillMappings[word].some(lang => githubLanguages.has(lang));
-                if (hasLang) {
-                    inferred.push(skill);
-                    return;
+        // Check 3: Partial word matching (e.g., "React.js development" → check "react")
+        else {
+            const words = s.split(/[\s.,\/\-]+/);
+            for (const word of words) {
+                if (directLanguages.has(word) && githubLanguages.has(word)) {
+                    score = 100;
+                    category = "proven";
+                    break;
+                }
+                if (skillToLanguage[word]) {
+                    const mapping = skillToLanguage[word];
+                    const hasLang = mapping.languages.some(lang => githubLanguages.has(lang));
+                    if (hasLang) {
+                        score = mapping.weight;
+                        category = "inferred";
+                        break;
+                    }
                 }
             }
         }
 
-        missing.push(skill);
+        // Categorize
+        if (category === "proven") {
+            proven.push(skill);
+        } else if (category === "inferred") {
+            inferred.push(skill);
+        } else {
+            missing.push(skill);
+        }
+
+        totalScore += score;
     });
 
-    // Calculate proof score (proven = 100%, inferred = 70%, missing = 0%)
+    // Calculate average proof score
     const totalSkills = claimedSkills.length || 1;
+    const proofScore = Math.round(totalScore / totalSkills);
+
+    return {
+        proof_score: Math.min(proofScore, 100),
+        proven,
+        inferred,
+        missing
+    };
+}
+
+/**
+ * ENHANCED Proof Score with new formula:
+ * Proof = (Experience Relevance × 0.4) + (Project Match × 0.4) + (Language Match × 0.2)
+ * 
+ * This measures ACTUAL relevance, not just language detection.
+ */
+export interface EnhancedProofResult extends SkillVerification {
+    experienceRelevance: number;
+    projectMatch: number;
+    languageMatch: number;
+    matchedProjects: string[];
+}
+
+export function calculateEnhancedProofScore(
+    claimedSkills: string[],
+    resumeProjects: string[],
+    experienceYears: number,
+    requiredExperience: number,
+    githubStats: GitHubAnalysis
+): EnhancedProofResult {
+    const proven: string[] = [];
+    const missing: string[] = [];
+    const inferred: string[] = [];
+    const matchedProjects: string[] = [];
+
+    // 1. Experience Relevance (0-100)
+    let experienceRelevance = 100;
+    if (requiredExperience > 0) {
+        if (experienceYears >= requiredExperience) {
+            experienceRelevance = 100;
+        } else if (experienceYears >= requiredExperience * 0.8) {
+            experienceRelevance = 85;
+        } else if (experienceYears >= requiredExperience * 0.6) {
+            experienceRelevance = 70;
+        } else if (experienceYears >= requiredExperience * 0.4) {
+            experienceRelevance = 50;
+        } else {
+            experienceRelevance = 30;
+        }
+    }
+
+    // 2. Project Match (Resume projects vs GitHub repos)
+    const repoNames = githubStats?.stats?.repoNames || [];
+    const repoDescriptions = githubStats?.stats?.repoDescriptions || [];
+    const allGithubText = [...repoNames, ...repoDescriptions].join(' ').toLowerCase();
+
+    let projectMatchCount = 0;
+    resumeProjects.forEach(project => {
+        const projectLower = project.toLowerCase();
+        // Check if project name or keywords appear in GitHub
+        const words = projectLower.split(/\s+/).filter(w => w.length > 3);
+        const hasMatch = words.some(word => allGithubText.includes(word));
+        if (hasMatch) {
+            projectMatchCount++;
+            matchedProjects.push(project);
+        }
+    });
+
+    const projectMatch = resumeProjects.length > 0
+        ? Math.round((projectMatchCount / resumeProjects.length) * 100)
+        : 50; // Default if no projects listed
+
+    // 3. Language Match (simplified from original)
+    const githubLanguages = new Set(
+        (githubStats?.stats?.languages || []).map((l: string) => l.toLowerCase())
+    );
+
+    let languageMatchCount = 0;
+    const technicalSkills = claimedSkills.filter(s => !s.toLowerCase().includes('communication'));
+
+    technicalSkills.forEach(skill => {
+        const skillLower = skill.toLowerCase();
+        if (githubLanguages.has(skillLower)) {
+            proven.push(skill);
+            languageMatchCount++;
+        } else {
+            // Check if skill can be inferred
+            const inferMap: Record<string, string[]> = {
+                "react": ["javascript", "typescript"],
+                "vue": ["javascript", "typescript"],
+                "angular": ["javascript", "typescript"],
+                "node": ["javascript", "typescript"],
+                "django": ["python"],
+                "flask": ["python"],
+                "spring": ["java", "kotlin"],
+            };
+
+            const mappedLangs = Object.entries(inferMap)
+                .filter(([key]) => skillLower.includes(key))
+                .flatMap(([_, langs]) => langs);
+
+            if (mappedLangs.some(lang => githubLanguages.has(lang))) {
+                inferred.push(skill);
+                languageMatchCount += 0.5; // Partial credit
+            } else {
+                missing.push(skill);
+            }
+        }
+    });
+
+    const languageMatch = technicalSkills.length > 0
+        ? Math.round((languageMatchCount / technicalSkills.length) * 100)
+        : 50;
+
+    // Final Score: Weighted average
     const proofScore = Math.round(
-        ((proven.length * 100) + (inferred.length * 70)) / totalSkills
+        (experienceRelevance * 0.4) +
+        (projectMatch * 0.4) +
+        (languageMatch * 0.2)
     );
 
     return {
         proof_score: Math.min(proofScore, 100),
         proven,
         missing,
-        inferred
+        inferred,
+        experienceRelevance,
+        projectMatch,
+        languageMatch,
+        matchedProjects
     };
 }
 
@@ -197,27 +423,47 @@ export function analyzeSkillEvolution(githubStats: GitHubAnalysis): SkillEvoluti
 
 /**
  * Evaluate project depth based on repository metrics
+ * 
+ * Enhanced Signals:
+ * - Stars: Community validation
+ * - Languages: Tech diversity
+ * - Repo Size: Code volume (>1MB = serious project)
+ * - Descriptions: Documentation maturity
+ * - Activity: Ongoing maintenance
  */
 export function evaluateProjectDepth(githubStats: GitHubAnalysis): ProjectDepth {
     const { stats } = githubStats;
 
-    // Heuristic: Calculate based on stars, languages, and activity
+    // Component scores (0-25 each, total = 100)
+    const starScore = Math.min(stats.totalStars * 3, 25);
+    const languageScore = Math.min(stats.languages.length * 5, 25);
+    const activityScore = Math.min(stats.activeRepos * 5, 25);
+
+    // NEW: Size score (repos over 1MB = 1000KB indicate real projects)
+    const largeRepos = stats.totalRepoSize > 5000 ? 25 :
+        stats.totalRepoSize > 1000 ? 15 :
+            stats.totalRepoSize > 500 ? 10 : 5;
+
+    // NEW: Documentation score (well-described repos)
+    const docScore = stats.reposWithDescription > 5 ? 10 :
+        stats.reposWithDescription > 2 ? 5 : 0;
+
     const avgComplexity = Math.min(
-        Math.round(
-            (stats.totalStars * 5) +
-            (stats.languages.length * 10) +
-            (stats.activeRepos * 8)
-        ),
+        Math.round(starScore + languageScore + activityScore + largeRepos + docScore),
         100
     );
 
     // Estimate deep vs surface projects
-    // Deep: original repos with stars or multiple languages
+    // Deep: original repos with stars OR large size OR good documentation
     const deepProjects = Math.min(
-        Math.round((stats.originalRepos * 0.4) + (stats.totalStars / 10)),
+        Math.round(
+            (stats.originalRepos * 0.3) +
+            (stats.totalStars / 10) +
+            (stats.reposWithDescription * 0.2)
+        ),
         stats.originalRepos
     );
-    const surfaceProjects = stats.originalRepos - deepProjects;
+    const surfaceProjects = Math.max(0, stats.originalRepos - deepProjects);
 
     // Generate recommendation
     let recommendation = "";

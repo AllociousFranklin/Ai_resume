@@ -73,19 +73,44 @@ function calculateATSScoreFromLocal(
 ) {
     const { matches, stats } = localResult;
 
-    // Calculate match percentages by category
+    // Priority weights: critical=2x, preferred=1x, bonus=0.5x
+    const getPriorityWeight = (m: typeof matches[0]) => {
+        const priority = (m as any).priority || 'preferred';
+        switch (priority) {
+            case 'critical': return 2;
+            case 'preferred': return 1;
+            case 'bonus': return 0.5;
+            default: return 1;
+        }
+    };
+
+    // Calculate WEIGHTED match percentages by category
     const techMatches = matches.filter(m => m.category === 'technical');
     const toolMatches = matches.filter(m => m.category === 'tools');
     const softMatches = matches.filter(m => m.category === 'soft');
 
-    const calcPercent = (arr: typeof matches) =>
-        arr.length > 0
-            ? Math.round((arr.filter(m => m.status === 'matched').length / arr.length) * 100)
-            : 100;
+    const calcWeightedPercent = (arr: typeof matches) => {
+        if (arr.length === 0) return 100;
 
-    const skillMatch = calcPercent(techMatches);
-    const toolMatch = calcPercent(toolMatches);
-    const softMatch = calcPercent(softMatches);
+        let weightedMatch = 0;
+        let totalWeight = 0;
+
+        arr.forEach(m => {
+            const weight = getPriorityWeight(m);
+            totalWeight += weight;
+            if (m.status === 'matched') {
+                weightedMatch += weight;
+            } else if (m.status === 'partial') {
+                weightedMatch += weight * 0.5; // Partial matches get half credit
+            }
+        });
+
+        return totalWeight > 0 ? Math.round((weightedMatch / totalWeight) * 100) : 100;
+    };
+
+    const skillMatch = calcWeightedPercent(techMatches);
+    const toolMatch = calcWeightedPercent(toolMatches);
+    const softMatch = calcWeightedPercent(softMatches);
 
     // Experience match
     let experienceMatch = 100;
@@ -101,12 +126,19 @@ function calculateATSScoreFromLocal(
         }
     }
 
-    // Keyword density
-    const keywordDensity = stats.total > 0
-        ? Math.round((stats.matched / stats.total) * 100)
+    // Weighted keyword density
+    let weightedMatchCount = 0;
+    let totalWeight = 0;
+    matches.forEach(m => {
+        const weight = getPriorityWeight(m);
+        totalWeight += weight;
+        if (m.status === 'matched') weightedMatchCount += weight;
+    });
+    const keywordDensity = totalWeight > 0
+        ? Math.round((weightedMatchCount / totalWeight) * 100)
         : 50;
 
-    // Same formula as always
+    // Same formula
     const score = Math.round(
         (skillMatch * 0.35) +
         (toolMatch * 0.25) +
@@ -123,11 +155,17 @@ function calculateATSScoreFromLocal(
         .filter(m => m.status === 'missing')
         .map(m => m.jdSkill);
 
+    // Highlight critical misses
+    const criticalMisses = matches
+        .filter(m => m.status === 'missing' && (m as any).priority === 'critical')
+        .map(m => m.jdSkill);
+
     return {
         score: Math.min(Math.max(score, 0), 100),
         breakdown: { skillMatch, toolMatch, softMatch, experienceMatch, keywordDensity },
         matchedSkills,
-        missingSkills
+        missingSkills,
+        criticalMisses
     };
 }
 
@@ -180,22 +218,22 @@ async function processResumeWithRetry(
             // @ts-ignore
             const jobCategory = combinedData.job_category || "general";
 
-            // 2.5 Adaptive Link Validation
+            // 2.5 Adaptive Link Validation with Quality Scoring
             let linkScore = 0;
             console.log(`[BatchProcessor] Job Category: ${jobCategory}`);
 
             if (jobCategory === "creative" && links.portfolio) {
                 const val = await validateLink(links.portfolio);
-                if (val.isValid) linkScore = 100;
+                if (val.isValid) linkScore = val.qualityScore;
             } else if (jobCategory === "general" && links.linkedin) {
                 const val = await validateLink(links.linkedin);
-                if (val.isValid) linkScore = 100;
+                if (val.isValid) linkScore = val.qualityScore;
             } else if ((links.portfolio || links.linkedin) && jobCategory === "technical") {
-                // Technical candidates get a bonus for verified portfolio/linkedin
+                // Technical candidates get scaled bonus for verified portfolio/linkedin
                 const url = links.portfolio || links.linkedin;
                 if (url) {
                     const val = await validateLink(url);
-                    if (val.isValid) linkScore = 50;
+                    if (val.isValid) linkScore = Math.round(val.qualityScore * 0.5);
                 }
             }
 
@@ -227,7 +265,8 @@ async function processResumeWithRetry(
                         resumeSkill: m.resumeSkill,
                         confidence: m.confidence,
                         status,
-                        category: m.category as "technical" | "tools" | "soft"
+                        category: m.category as "technical" | "tools" | "soft",
+                        priority: m.priority || "preferred" // NEW: Include priority
                     };
                 });
 
@@ -353,7 +392,12 @@ async function processResumeWithRetry(
                     nice_to_have: niceToHaveGaps
                 },
                 skill_evolution: skillEvolution,
-                project_depth: projectDepth,
+                project_depth: {
+                    complexity: projectDepth.average_complexity,
+                    deep_projects: projectDepth.deep_projects,
+                    surface_projects: projectDepth.surface_projects,
+                    recommendation: projectDepth.recommendation
+                },
                 cluster: clusterData,
                 predictions: mlPredictions,
                 bias: {
