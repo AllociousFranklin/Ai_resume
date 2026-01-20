@@ -1,82 +1,94 @@
 @import "tailwindcss";
 
 :root {
-  --background: #050505;
-  --foreground: #fafafa;
+  /* ATS Light Theme (Default) */
+  --background: #F8FAFC;
+  /* Slate 50 */
+  --foreground: #0F172A;
+  /* Slate 900 */
 
-  --card: #0a0a0a;
-  --card-foreground: #fafafa;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
 
-  --popover: #0a0a0a;
-  --popover-foreground: #fafafa;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
 
-  --primary: #6366f1;
-  /* Indigo 500 */
-  --primary-foreground: #ffffff;
+  --primary: #2563EB;
+  /* Blue 600 */
+  --primary-foreground: #FFFFFF;
 
-  --secondary: #171717;
-  --secondary-foreground: #fafafa;
+  --secondary: #F1F5F9;
+  /* Slate 100 */
+  --secondary-foreground: #334155;
+  /* Slate 700 */
 
-  --muted: #262626;
-  --muted-foreground: #a3a3a3;
+  --muted: #F8FAFC;
+  /* Slate 50 - subtly distinct from card */
+  --muted-foreground: #64748B;
+  /* Slate 500 */
 
-  --accent: #22d3ee;
-  /* Cyan 400 */
-  --accent-foreground: #050505;
+  --accent: #EFF6FF;
+  /* Blue 50 */
+  --accent-foreground: #1E40AF;
+  /* Blue 800 */
 
-  --destructive: #ef4444;
-  --destructive-foreground: #fafafa;
+  --destructive: #EF4444;
+  /* Red 500 */
+  --destructive-foreground: #FFFFFF;
 
-  --border: #262626;
-  --input: #262626;
-  --ring: #6366f1;
+  --border: #E2E8F0;
+  /* Slate 200 */
+  --input: #E2E8F0;
+  --ring: #2563EB;
 
-  --radius: 0.75rem;
+  --radius: 0.5rem;
+  /* 8px - standard enterprise */
 
-  /* Gradients */
-  --gradient-1: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-  --gradient-2: linear-gradient(135deg, #3b82f6 0%, #22d3ee 100%);
-  --gradient-glass: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* Light Theme */
-:root.light {
-  --background: #fafafa;
-  --foreground: #0a0a0a;
+/* Optional Dark Mode (Mapped to Slate) */
+:root.dark {
+  --background: #020617;
+  /* Slate 950 */
+  --foreground: #F8FAFC;
+  /* Slate 50 */
 
-  --card: #ffffff;
-  --card-foreground: #0a0a0a;
+  --card: #0F172A;
+  /* Slate 900 */
+  --card-foreground: #F8FAFC;
 
-  --popover: #ffffff;
-  --popover-foreground: #0a0a0a;
+  --popover: #0F172A;
+  --popover-foreground: #F8FAFC;
 
-  --primary: #4f46e5;
-  --primary-foreground: #ffffff;
+  --primary: #3B82F6;
+  /* Blue 500 */
+  --primary-foreground: #FFFFFF;
 
-  --secondary: #f5f5f5;
-  --secondary-foreground: #171717;
+  --secondary: #1E293B;
+  /* Slate 800 */
+  --secondary-foreground: #F8FAFC;
 
-  --muted: #e5e5e5;
-  --muted-foreground: #737373;
+  --muted: #1E293B;
+  --muted-foreground: #94A3B8;
+  /* Slate 400 */
 
-  --accent: #0891b2;
-  --accent-foreground: #ffffff;
+  --accent: #1E293B;
+  --accent-foreground: #60A5FA;
 
-  --destructive: #dc2626;
-  --destructive-foreground: #ffffff;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
 
-  --border: #e5e5e5;
-  --input: #e5e5e5;
-  --ring: #4f46e5;
-
-  --gradient-glass: linear-gradient(180deg, rgba(0, 0, 0, 0.02) 0%, rgba(0, 0, 0, 0) 100%);
+  --border: #1E293B;
+  --input: #1E293B;
+  --ring: #3B82F6;
 }
 
 /* Theme Transition */
 *,
 *::before,
 *::after {
-  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.15s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.1s ease;
 }
 
 @theme inline {
@@ -100,6 +112,8 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
+  --font-sans: var(--font-sans);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -109,43 +123,55 @@
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 @layer utilities {
-  .glass {
-    background: rgba(10, 10, 10, 0.7);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+
+  /* ATS-style Card */
+  .ats-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   }
 
-  .glass-card {
-    background: rgba(23, 23, 23, 0.5);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+  .ats-shadow {
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
   }
 
-  .text-glow {
-    text-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+  /* Clean Typography */
+  .text-h1 {
+    font-size: 2.25rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 2.5rem;
   }
 
-  .animation-delay-200 {
-    animation-delay: 200ms;
+  /* Custom Animations for Landing Page */
+  .animate-pulse-slow {
+    animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
-  .animation-delay-500 {
-    animation-delay: 500ms;
+  .animate-gradient-x {
+    background-size: 200% 200%;
+    animation: gradient-x 15s ease infinite;
   }
 
-  .gradient-text {
-    background: linear-gradient(135deg, #6366f1 0%, #22d3ee 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+  @keyframes gradient-x {
+    0% {
+      background-position: 0% 50%;
+    }
+
+    50% {
+      background-position: 100% 50%;
+    }
+
+    100% {
+      background-position: 0% 50%;
+    }
   }
 }
 
@@ -156,11 +182,11 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--background);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--muted);
+  background: var(--border);
   border-radius: 4px;
 }
 
@@ -170,6 +196,6 @@ body {
 
 /* Selection */
 ::selection {
-  background: rgba(99, 102, 241, 0.3);
-  color: white;
+  background: var(--accent);
+  color: var(--accent-foreground);
 }

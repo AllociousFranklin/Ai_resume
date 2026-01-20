@@ -16,13 +16,16 @@ import {
     ArrowLeft,
     RefreshCw,
     GitCompare,
-    Download
+    Download,
+    ChevronRight,
+    Github,
+    Mail,
+    Search
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Dashboard from "@/components/Dashboard";
 import { ComparisonView } from "@/components/ComparisonView";
 import { ScoreGauge } from "@/components/visualizations/Charts";
-import { generateCandidateReport } from "@/lib/pdf-export";
 
 interface CandidateResult {
     candidateId: string;
@@ -101,7 +104,7 @@ export default function BatchPage() {
         try {
             const formData = new FormData();
             formData.append("jd", jdText);
-            files.forEach((file, i) => {
+            files.forEach((file) => {
                 formData.append("resumes", file);
             });
 
@@ -127,28 +130,28 @@ export default function BatchPage() {
     };
 
     const handleRetry = async (candidate: CandidateResult) => {
-        // For now, just remove from failed and let user re-run batch
-        // In a full implementation, you'd retry just that one
         setError("Please re-run the batch to retry failed candidates");
     };
 
     const getScoreColor = (score: number) => {
-        if (score >= 80) return "text-emerald-400";
-        if (score >= 65) return "text-green-400";
-        if (score >= 45) return "text-amber-400";
-        return "text-rose-400";
+        if (score >= 80) return "text-green-600";
+        if (score >= 65) return "text-blue-600";
+        if (score >= 45) return "text-amber-600";
+        return "text-red-600";
     };
 
     const getRecommendationBadge = (rec: CandidateResult["recommendation"]) => {
         if (!rec) return null;
         const colors: Record<string, string> = {
-            emerald: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-            green: "bg-green-500/20 text-green-400 border-green-500/30",
-            amber: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-            rose: "bg-rose-500/20 text-rose-400 border-rose-500/30"
+            emerald: "bg-green-50 text-green-700 border-green-100",
+            green: "bg-green-50 text-green-700 border-green-100",
+            amber: "bg-amber-50 text-amber-700 border-amber-100",
+            rose: "bg-red-50 text-red-700 border-red-100",
+            blue: "bg-blue-50 text-blue-700 border-blue-100"
         };
+        const colorClass = colors[rec.color] || colors.blue;
         return (
-            <span className={cn("px-2 py-0.5 text-xs rounded-full border", colors[rec.color] || colors.amber)}>
+            <span className={cn("px-2.5 py-1 text-xs font-bold rounded-md border uppercase tracking-wider", colorClass)}>
                 {rec.label}
             </span>
         );
@@ -157,31 +160,37 @@ export default function BatchPage() {
     // Show full dashboard for selected candidate
     if (selectedCandidate?.fullAnalysis) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950">
-                <div className="max-w-7xl mx-auto p-4">
+            <div className="min-h-screen bg-[#F8FAFC]">
+                <div className="max-w-7xl mx-auto px-4 py-8">
                     <button
                         onClick={() => setSelectedCandidate(null)}
-                        className="flex items-center gap-2 text-gray-400 hover:text-white mb-4 transition-colors"
+                        className="flex items-center gap-2 text-gray-500 hover:text-gray-900 mb-6 font-medium transition-colors"
                     >
                         <ArrowLeft className="w-4 h-4" />
-                        Back to Rankings
+                        Back to Ranking Result
                     </button>
-                    <div className="mb-4 p-4 bg-gray-800/50 rounded-xl border border-gray-700/50">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <span className="text-gray-400">Viewing:</span>
-                                <span className="ml-2 text-white font-semibold">
-                                    #{selectedCandidate.rank} - {selectedCandidate.name || "Unknown"}
-                                </span>
+
+                    <div className="mb-8 p-6 bg-white rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white text-xl font-black">
+                                {selectedCandidate.rank}
                             </div>
-                            <div className="flex items-center gap-4">
-                                <span className={cn("text-2xl font-bold", getScoreColor(selectedCandidate.finalScore))}>
-                                    {selectedCandidate.finalScore}
-                                </span>
-                                {getRecommendationBadge(selectedCandidate.recommendation)}
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-900">{selectedCandidate.name || "Unknown Candidate"}</h2>
+                                <p className="text-gray-500 font-medium">Ranked High-Potential Applicant</p>
                             </div>
                         </div>
+                        <div className="flex items-center gap-6">
+                            <div className="text-right">
+                                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Match Score</p>
+                                <span className={cn("text-3xl font-black", getScoreColor(selectedCandidate.finalScore))}>
+                                    {selectedCandidate.finalScore}
+                                </span>
+                            </div>
+                            {getRecommendationBadge(selectedCandidate.recommendation)}
+                        </div>
                     </div>
+
                     <Dashboard data={selectedCandidate.fullAnalysis} />
                 </div>
             </div>
@@ -191,112 +200,109 @@ export default function BatchPage() {
     // Show results table
     if (batchResult && !isProcessing) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-4">
-                <div className="max-w-7xl mx-auto">
+            <div className="min-h-screen bg-[#F8FAFC] pb-12">
+                <div className="max-w-7xl mx-auto px-4 py-8">
                     {/* Header */}
-                    <div className="mb-8">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                                    <Trophy className="w-8 h-8 text-amber-400" />
-                                    Candidate Rankings
-                                </h1>
-                                <p className="text-gray-400 mt-1">
-                                    {batchResult.processed} candidates processed in {(batchResult.processingTimeMs / 1000).toFixed(1)}s
-                                </p>
+                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+                        <div>
+                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-50 rounded-full border border-amber-100 text-amber-700 text-xs font-bold uppercase tracking-wider mb-3">
+                                <Trophy className="w-3 h-3" />
+                                Analysis Complete
                             </div>
-                            <div className="flex items-center gap-3">
-                                <button
-                                    onClick={() => {
-                                        setCompareMode(!compareMode);
-                                        setSelectedForCompare([]);
-                                    }}
-                                    className={cn(
-                                        "flex items-center gap-2 px-4 py-2 rounded-lg transition-colors",
-                                        compareMode
-                                            ? "bg-primary text-white"
-                                            : "bg-gray-800 hover:bg-gray-700 text-white"
-                                    )}
-                                >
-                                    <GitCompare className="w-4 h-4" />
-                                    {compareMode ? "Cancel Compare" : "Compare"}
-                                </button>
-                                {compareMode && selectedForCompare.length === 2 && (
-                                    <button
-                                        onClick={() => setShowComparison(true)}
-                                        className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/80 text-white rounded-lg transition-colors"
-                                    >
-                                        View Comparison
-                                    </button>
-                                )}
-                                <button
-                                    onClick={() => {
-                                        setBatchResult(null);
-                                        setFiles([]);
-                                        setJdText("");
-                                    }}
-                                    className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors"
-                                >
-                                    New Batch
-                                </button>
-                            </div>
+                            <h1 className="text-3xl font-black text-gray-900">Pipeline Rankings</h1>
+                            <p className="text-gray-500 font-medium mt-1">
+                                {batchResult.processed} resumes processed in {(batchResult.processingTimeMs / 1000).toFixed(1)}s
+                            </p>
                         </div>
 
-                        {/* Stats */}
-                        <div className="grid grid-cols-4 gap-4 mt-6">
-                            <div className="p-4 bg-gray-800/50 rounded-xl border border-gray-700/50">
-                                <p className="text-gray-400 text-sm">Total</p>
-                                <p className="text-2xl font-bold text-white">{batchResult.totalCandidates}</p>
-                            </div>
-                            <div className="p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/30">
-                                <p className="text-emerald-400 text-sm">Processed</p>
-                                <p className="text-2xl font-bold text-emerald-400">{batchResult.processed - batchResult.failed}</p>
-                            </div>
-                            <div className="p-4 bg-rose-500/10 rounded-xl border border-rose-500/30">
-                                <p className="text-rose-400 text-sm">Failed</p>
-                                <p className="text-2xl font-bold text-rose-400">{batchResult.failed}</p>
-                            </div>
-                            <div className="p-4 bg-cyan-500/10 rounded-xl border border-cyan-500/30">
-                                <p className="text-cyan-400 text-sm">From Cache</p>
-                                <p className="text-2xl font-bold text-cyan-400">{batchResult.cached}</p>
-                            </div>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => {
+                                    setCompareMode(!compareMode);
+                                    setSelectedForCompare([]);
+                                }}
+                                className={cn(
+                                    "flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold transition-all border",
+                                    compareMode
+                                        ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-200"
+                                        : "bg-white text-gray-700 border-gray-200 hover:border-gray-300 shadow-sm"
+                                )}
+                            >
+                                <GitCompare className="w-4 h-4" />
+                                {compareMode ? "Stop Comparing" : "Compare"}
+                            </button>
+
+                            {compareMode && selectedForCompare.length === 2 && (
+                                <button
+                                    onClick={() => setShowComparison(true)}
+                                    className="flex items-center gap-2 px-6 py-2.5 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition-all shadow-lg"
+                                >
+                                    Analyze Pair
+                                </button>
+                            )}
+
+                            <button
+                                onClick={() => {
+                                    setBatchResult(null);
+                                    setFiles([]);
+                                    setJdText("");
+                                }}
+                                className="px-5 py-2.5 bg-white text-gray-900 border border-gray-200 rounded-xl font-bold hover:bg-gray-50 transition-all shadow-sm"
+                            >
+                                New Analysis
+                            </button>
                         </div>
                     </div>
 
+                    {/* Stats Summary */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                        {[
+                            { label: "Total Candidates", value: batchResult.totalCandidates, icon: Users, color: "text-blue-600" },
+                            { label: "High Confidence", value: batchResult.processed - batchResult.failed, icon: CheckCircle, color: "text-green-600" },
+                            { label: "Processing Gaps", value: batchResult.failed, icon: AlertCircle, color: "text-red-500" },
+                            { label: "Cached Results", value: batchResult.cached, icon: RefreshCw, color: "text-indigo-500" },
+                        ].map((stat, i) => (
+                            <div key={i} className="p-5 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                                <div className="flex items-center justify-between mb-2">
+                                    <stat.icon className={cn("w-5 h-5", stat.color)} />
+                                    <span className="text-2xl font-black text-gray-900">{stat.value}</span>
+                                </div>
+                                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{stat.label}</p>
+                            </div>
+                        ))}
+                    </div>
+
                     {/* Results Table */}
-                    <div className="bg-gray-800/30 rounded-2xl border border-gray-700/50 overflow-hidden">
-                        <table className="w-full">
+                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                        <table className="w-full text-left">
                             <thead>
-                                <tr className="bg-gray-800/50 border-b border-gray-700/50">
+                                <tr className="bg-gray-50/50 border-b border-gray-100">
                                     {compareMode && (
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">
-                                            Compare
-                                        </th>
+                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Pick</th>
                                     )}
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Rank</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Candidate</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Score</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">GitHub</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Recommendation</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Status</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Actions</th>
+                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Rank</th>
+                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Candidate Information</th>
+                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Score</th>
+                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Verified Data</th>
+                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status</th>
+                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody className="divide-y divide-gray-100">
                                 {batchResult.candidates.map((candidate, idx) => (
                                     <motion.tr
                                         key={candidate.candidateId}
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: idx * 0.05 }}
+                                        transition={{ delay: idx * 0.03 }}
                                         className={cn(
-                                            "border-b border-gray-700/30 hover:bg-gray-700/20 transition-colors",
-                                            candidate.status === "failed" && "opacity-60",
-                                            selectedForCompare.some(c => c.candidateId === candidate.candidateId) && "bg-primary/10"
+                                            "hover:bg-gray-50/50 transition-colors group",
+                                            candidate.status === "failed" && "bg-red-50/30",
+                                            selectedForCompare.some(c => c.candidateId === candidate.candidateId) && "bg-blue-50/50"
                                         )}
                                     >
                                         {compareMode && (
-                                            <td className="px-4 py-4">
+                                            <td className="px-6 py-6 font-medium text-gray-900">
                                                 <input
                                                     type="checkbox"
                                                     disabled={candidate.status !== "success" || (selectedForCompare.length >= 2 && !selectedForCompare.some(c => c.candidateId === candidate.candidateId))}
@@ -308,77 +314,75 @@ export default function BatchPage() {
                                                             setSelectedForCompare(prev => prev.filter(c => c.candidateId !== candidate.candidateId));
                                                         }
                                                     }}
-                                                    className="w-5 h-5 rounded border-gray-600 bg-gray-800 text-primary focus:ring-primary cursor-pointer"
+                                                    className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                                                 />
                                             </td>
                                         )}
-                                        <td className="px-4 py-4">
+                                        <td className="px-6 py-6">
                                             <span className={cn(
-                                                "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold",
-                                                candidate.rank === 1 && "bg-amber-500/20 text-amber-400",
-                                                candidate.rank === 2 && "bg-gray-400/20 text-gray-300",
-                                                candidate.rank === 3 && "bg-amber-700/20 text-amber-600",
-                                                candidate.rank > 3 && "bg-gray-800 text-gray-400"
+                                                "w-9 h-9 rounded-lg flex items-center justify-center text-sm font-black shadow-sm",
+                                                candidate.rank === 1 ? "bg-amber-100 text-amber-700 font-black" :
+                                                    candidate.rank === 2 ? "bg-gray-100 text-gray-700" :
+                                                        candidate.rank === 3 ? "bg-orange-50 text-orange-700" :
+                                                            "bg-white border border-gray-200 text-gray-400"
                                             )}>
                                                 {candidate.rank}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-4">
-                                            <p className="text-white font-medium">{candidate.name || "Unknown"}</p>
-                                            {candidate.email && (
-                                                <p className="text-gray-500 text-sm">{candidate.email}</p>
-                                            )}
+                                        <td className="px-6 py-6">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold uppercase">
+                                                    {(candidate.name || "U")[0]}
+                                                </div>
+                                                <div>
+                                                    <p className="text-gray-900 font-bold group-hover:text-blue-600 transition-colors">{candidate.name || "Unknown Candidate"}</p>
+                                                    <div className="flex items-center gap-2 text-gray-400 text-xs mt-0.5">
+                                                        <Mail className="w-3 h-3" />
+                                                        {candidate.email || "No email available"}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </td>
-                                        <td className="px-4 py-4">
-                                            <span className={cn("text-2xl font-bold", getScoreColor(candidate.finalScore))}>
+                                        <td className="px-6 py-6">
+                                            <span className={cn("text-2xl font-black", getScoreColor(candidate.finalScore))}>
                                                 {candidate.finalScore}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-4">
+                                        <td className="px-6 py-6">
                                             {candidate.githubVerified ? (
-                                                <span className="flex items-center gap-1 text-emerald-400 text-sm">
-                                                    <CheckCircle className="w-4 h-4" />
-                                                    {candidate.githubUsername}
-                                                </span>
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-1.5 text-blue-600 font-bold text-xs bg-blue-50 px-2 py-1 rounded w-fit capitalize">
+                                                        <Github className="w-3.5 h-3.5" />
+                                                        {candidate.githubUsername}
+                                                    </div>
+                                                </div>
                                             ) : (
-                                                <span className="text-gray-500 text-sm">—</span>
+                                                <span className="text-gray-300 text-xs italic">—</span>
                                             )}
                                         </td>
-                                        <td className="px-4 py-4">
+                                        <td className="px-6 py-6">
                                             {getRecommendationBadge(candidate.recommendation)}
                                         </td>
-                                        <td className="px-4 py-4">
-                                            {candidate.status === "success" && (
-                                                <span className="flex items-center gap-1 text-emerald-400 text-sm">
-                                                    <CheckCircle className="w-4 h-4" />
-                                                    {candidate.fromCache ? "Cached" : "Success"}
-                                                </span>
-                                            )}
-                                            {candidate.status === "failed" && (
-                                                <span className="flex items-center gap-1 text-rose-400 text-sm">
-                                                    <AlertCircle className="w-4 h-4" />
-                                                    Failed
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            {candidate.status === "success" ? (
-                                                <button
-                                                    onClick={() => setSelectedCandidate(candidate)}
-                                                    className="flex items-center gap-1 px-3 py-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 rounded-lg text-sm transition-colors"
-                                                >
-                                                    <Eye className="w-4 h-4" />
-                                                    View
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    onClick={() => handleRetry(candidate)}
-                                                    className="flex items-center gap-1 px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 rounded-lg text-sm transition-colors"
-                                                >
-                                                    <RefreshCw className="w-4 h-4" />
-                                                    Retry
-                                                </button>
-                                            )}
+                                        <td className="px-6 py-6">
+                                            <div className="flex items-center gap-2">
+                                                {candidate.status === "success" ? (
+                                                    <button
+                                                        onClick={() => setSelectedCandidate(candidate)}
+                                                        className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-gray-900 text-white rounded-lg text-xs font-bold hover:bg-black transition-all shadow-sm"
+                                                    >
+                                                        <Eye className="w-3.5 h-3.5" />
+                                                        Review Profile
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleRetry(candidate)}
+                                                        className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs font-bold hover:bg-gray-50 transition-all shadow-sm"
+                                                    >
+                                                        <RefreshCw className="w-3.5 h-3.5" />
+                                                        Retry
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                     </motion.tr>
                                 ))}
@@ -431,24 +435,24 @@ export default function BatchPage() {
 
     // Upload form
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-4">
-            <div className="max-w-4xl mx-auto pt-8">
+        <div className="min-h-screen bg-[#F8FAFC]">
+            <div className="max-w-4xl mx-auto px-4 py-16">
                 {/* Header */}
-                <div className="text-center mb-12">
+                <div className="text-center mb-16">
                     <motion.div
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-500/20 to-cyan-500/20 rounded-full border border-indigo-500/30 mb-6"
+                        className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 text-blue-700 rounded-full border border-blue-100 mb-6"
                     >
-                        <Users className="w-4 h-4 text-indigo-400" />
-                        <span className="text-sm text-indigo-300">Enterprise Batch Processing</span>
+                        <Users className="w-4 h-4" />
+                        <span className="text-xs font-bold uppercase tracking-widest">Enterprise Talent Pipeline</span>
                     </motion.div>
-                    <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-                        Analyze Multiple Resumes
+                    <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 tracking-tight">
+                        Pipeline Intelligence
                     </h1>
-                    <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-                        Upload up to 50 resumes and get ranked results instantly.
-                        Click any candidate to view their full analysis.
+                    <p className="text-gray-500 text-lg max-w-2xl mx-auto font-medium leading-relaxed">
+                        Analyze, rank, and verify up to 50 candidates simultaneously.
+                        Our engine cross-references resumes with real-world engineering footprints.
                     </p>
                 </div>
 
@@ -456,10 +460,10 @@ export default function BatchPage() {
                 <AnimatePresence>
                     {error && (
                         <motion.div
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            className="mb-6 p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center gap-3 text-rose-400"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="mb-8 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-700 font-medium"
                         >
                             <AlertCircle className="w-5 h-5 flex-shrink-0" />
                             {error}
@@ -467,117 +471,140 @@ export default function BatchPage() {
                     )}
                 </AnimatePresence>
 
-                {/* Drop Zone */}
-                <div
-                    {...getRootProps()}
-                    className={cn(
-                        "p-8 border-2 border-dashed rounded-2xl text-center cursor-pointer transition-all duration-300",
-                        isDragActive
-                            ? "border-indigo-500 bg-indigo-500/10"
-                            : "border-gray-700 hover:border-gray-600 bg-gray-800/30"
-                    )}
-                >
-                    <input {...getInputProps()} />
-                    <Upload className={cn(
-                        "w-12 h-12 mx-auto mb-4 transition-colors",
-                        isDragActive ? "text-indigo-400" : "text-gray-500"
-                    )} />
-                    <p className="text-lg text-white mb-2">
-                        {isDragActive ? "Drop resumes here..." : "Drag & drop resumes here"}
-                    </p>
-                    <p className="text-gray-500">or click to browse (PDF, DOCX • Max 50 files)</p>
-                </div>
-
-                {/* File List */}
-                {files.length > 0 && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        className="mt-6"
-                    >
-                        <div className="flex items-center justify-between mb-3">
-                            <p className="text-gray-400">
-                                {files.length} resume{files.length !== 1 ? "s" : ""} selected
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+                    {/* Left Column: Input */}
+                    <div className="md:col-span-2 space-y-8">
+                        {/* Drop Zone */}
+                        <div
+                            {...getRootProps()}
+                            className={cn(
+                                "p-12 border-2 border-dashed rounded-3xl text-center cursor-pointer transition-all duration-300 bg-white",
+                                isDragActive
+                                    ? "border-blue-600 bg-blue-50/50"
+                                    : "border-gray-200 hover:border-gray-300 hover:bg-gray-50/50"
+                            )}
+                        >
+                            <input {...getInputProps()} />
+                            <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                                <Upload className={cn(
+                                    "w-8 h-8 transition-colors",
+                                    isDragActive ? "text-blue-600" : "text-gray-400"
+                                )} />
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-900 mb-2">
+                                {isDragActive ? "Drop to analysis..." : "Upload Talent Pool"}
+                            </h3>
+                            <p className="text-gray-500 font-medium px-4">
+                                Drag & drop PDF/Word resumes or click to browse
                             </p>
-                            <button
-                                onClick={() => setFiles([])}
-                                className="text-sm text-gray-500 hover:text-rose-400 transition-colors"
-                            >
-                                Clear all
-                            </button>
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-4">Max 50 Files</p>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
-                            {files.map((file, idx) => (
-                                <div
-                                    key={idx}
-                                    className="flex items-center gap-2 p-2 bg-gray-800/50 rounded-lg border border-gray-700/50"
-                                >
-                                    <FileText className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-                                    <span className="text-sm text-gray-300 truncate flex-1">{file.name}</span>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); removeFile(idx); }}
-                                        className="text-gray-500 hover:text-rose-400 transition-colors"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    </motion.div>
-                )}
 
-                {/* Job Description */}
-                <div className="mt-8">
-                    <label className="block text-gray-400 mb-2">Job Description</label>
-                    <textarea
-                        value={jdText}
-                        onChange={(e) => setJdText(e.target.value)}
-                        placeholder="Paste the job description here..."
-                        className="w-full h-48 p-4 bg-gray-800/50 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none"
-                    />
-                </div>
-
-                {/* Submit Button */}
-                <motion.button
-                    onClick={handleSubmit}
-                    disabled={isProcessing || files.length === 0 || !jdText.trim()}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className={cn(
-                        "w-full mt-6 py-4 rounded-xl font-semibold text-lg flex items-center justify-center gap-3 transition-all",
-                        isProcessing || files.length === 0 || !jdText.trim()
-                            ? "bg-gray-700 text-gray-500 cursor-not-allowed"
-                            : "bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white shadow-lg shadow-indigo-500/25"
-                    )}
-                >
-                    {isProcessing ? (
-                        <>
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                            Processing {progress.current}/{progress.total}...
-                        </>
-                    ) : (
-                        <>
-                            <Users className="w-5 h-5" />
-                            Analyze {files.length} Resume{files.length !== 1 ? "s" : ""}
-                        </>
-                    )}
-                </motion.button>
-
-                {/* Processing Progress */}
-                {isProcessing && (
-                    <div className="mt-4">
-                        <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-                            <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${(progress.current / progress.total) * 100}%` }}
-                                className="h-full bg-gradient-to-r from-indigo-500 to-cyan-500"
+                        {/* Job Description */}
+                        <div className="space-y-3">
+                            <label className="text-sm font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                <Search className="w-4 h-4" /> Position Requirements
+                            </label>
+                            <textarea
+                                value={jdText}
+                                onChange={(e) => setJdText(e.target.value)}
+                                placeholder="Paste the job description or ideal candidate profile here..."
+                                className="w-full h-64 p-6 bg-white border border-gray-200 rounded-3xl text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-50/50 transition-all resize-none shadow-sm text-sm leading-relaxed"
                             />
                         </div>
-                        <p className="text-center text-gray-500 text-sm mt-2">
-                            This may take a few minutes...
-                        </p>
                     </div>
-                )}
+
+                    {/* Right Column: Queue & Action */}
+                    <div className="space-y-6">
+                        <div className="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm overflow-hidden">
+                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                Analysis Queue {files.length > 0 && `(${files.length})`}
+                            </h4>
+                            {files.length === 0 ? (
+                                <div className="py-12 flex flex-col items-center justify-center text-center">
+                                    <FileText className="w-8 h-8 text-gray-200 mb-4" />
+                                    <p className="text-xs font-medium text-gray-400 italic">No resumes selected</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
+                                    {files.map((file, idx) => (
+                                        <motion.div
+                                            initial={{ opacity: 0, x: 20 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            key={idx}
+                                            className="group flex items-center gap-3 p-3 bg-gray-50/50 hover:bg-gray-100 rounded-2xl border border-transparent hover:border-gray-200 transition-all"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-blue-600 shadow-sm flex-shrink-0">
+                                                <FileText className="w-4 h-4" />
+                                            </div>
+                                            <span className="text-xs font-bold text-gray-700 truncate flex-1">{file.name}</span>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); removeFile(idx); }}
+                                                className="text-gray-400 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-all"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </motion.div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {files.length > 0 && (
+                                <button
+                                    onClick={() => setFiles([])}
+                                    className="w-full mt-4 py-2 text-xs font-bold text-gray-400 hover:text-red-500 transition-colors"
+                                >
+                                    Clear All
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Submit Button */}
+                        <div className="space-y-4">
+                            <button
+                                onClick={handleSubmit}
+                                disabled={isProcessing || files.length === 0 || !jdText.trim()}
+                                className={cn(
+                                    "w-full py-5 rounded-3xl font-black text-lg flex items-center justify-center gap-3 transition-all shadow-xl",
+                                    isProcessing || files.length === 0 || !jdText.trim()
+                                        ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none"
+                                        : "bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200 transform hover:-translate-y-1"
+                                )}
+                            >
+                                {isProcessing ? (
+                                    <>
+                                        <Loader2 className="w-6 h-6 animate-spin" />
+                                        <span>Ranking...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Trophy className="w-6 h-6" />
+                                        <span>Start Ranking</span>
+                                    </>
+                                )}
+                            </button>
+
+                            {isProcessing && (
+                                <div className="space-y-2 px-2">
+                                    <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                                        <span>Progress</span>
+                                        <span>{Math.round((progress.current / progress.total) * 100)}%</span>
+                                    </div>
+                                    <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden border border-gray-50">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${(progress.current / progress.total) * 100}%` }}
+                                            className="h-full bg-blue-600 shadow-sm"
+                                        />
+                                    </div>
+                                    <p className="text-center text-[10px] font-medium text-gray-400 italic">
+                                        Running semantic match & code verification...
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );

@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import AuthForm from "@/components/AuthForm";
 import { useAuth } from "@/context/AuthContext";
@@ -19,59 +18,38 @@ export default function LoginPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
             </div>
         );
     }
 
     return (
-        <main className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden">
-            {/* Background */}
-            <div className="absolute inset-0 overflow-hidden -z-10 pointer-events-none">
-                <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-600/20 rounded-full blur-[120px]" />
-                <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-600/20 rounded-full blur-[120px]" />
+        <main className="min-h-screen flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
+            <div className="w-full max-w-md space-y-8">
+                {/* Header */}
+                <div className="flex flex-col items-center justify-center text-center">
+                    <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white mb-4 shadow-sm">
+                        <Sparkles className="w-7 h-7" />
+                    </div>
+                    <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+                        Sign in to SkillSnap
+                    </h1>
+                    <p className="mt-2 text-sm text-gray-600">
+                        Enterprise talent intelligence for modern hiring.
+                    </p>
+                </div>
+
+                {/* Auth Form */}
+                <AuthForm onSuccess={() => router.push("/")} />
+
+                {/* Footer Link */}
+                <div className="text-center">
+                    <a href="/" className="text-sm font-medium text-blue-600 hover:text-blue-500 hover:underline">
+                        Return to home page
+                    </a>
+                </div>
             </div>
-
-            {/* Logo */}
-            <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-center mb-8"
-            >
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-indigo-400 mb-4"
-                >
-                    <Sparkles className="w-3 h-3" /> Talent Intelligence Engine
-                </motion.div>
-                <h1 className="text-4xl font-black tracking-tight">
-                    Skill<span className="text-indigo-500">Snap</span> AI
-                </h1>
-                <p className="text-muted-foreground mt-2">
-                    Sign in to analyze candidates
-                </p>
-            </motion.div>
-
-            {/* Auth Form */}
-            <AuthForm onSuccess={() => router.push("/")} />
-
-            {/* Skip Login Link */}
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="mt-6 text-center"
-            >
-                <a
-                    href="/"
-                    className="text-sm text-gray-500 hover:text-indigo-400 transition-colors"
-                >
-                    Skip login and try demo →
-                </a>
-            </motion.div>
         </main>
     );
 }

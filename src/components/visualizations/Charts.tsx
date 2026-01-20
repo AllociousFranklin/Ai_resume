@@ -12,7 +12,7 @@ interface ScoreGaugeProps {
 export function ScoreGauge({ score, label, size = "md", showLabel = true }: ScoreGaugeProps) {
     const sizes = {
         sm: { width: 80, stroke: 6, fontSize: "text-lg" },
-        md: { width: 120, stroke: 8, fontSize: "text-2xl" },
+        md: { width: 120, stroke: 8, fontSize: "text-3xl" },
         lg: { width: 160, stroke: 10, fontSize: "text-4xl" },
     };
 
@@ -22,13 +22,13 @@ export function ScoreGauge({ score, label, size = "md", showLabel = true }: Scor
     const progress = (score / 100) * circumference;
 
     const getColor = (score: number) => {
-        if (score >= 80) return { stroke: "#22c55e", bg: "rgba(34, 197, 94, 0.1)" }; // Green
-        if (score >= 60) return { stroke: "#3b82f6", bg: "rgba(59, 130, 246, 0.1)" }; // Blue
-        if (score >= 40) return { stroke: "#f59e0b", bg: "rgba(245, 158, 11, 0.1)" }; // Amber
-        return { stroke: "#ef4444", bg: "rgba(239, 68, 68, 0.1)" }; // Red
+        if (score >= 80) return "#16A34A"; // Green 600
+        if (score >= 60) return "#2563EB"; // Blue 600
+        if (score >= 40) return "#D97706"; // Amber 600
+        return "#DC2626"; // Red 600
     };
 
-    const colors = getColor(score);
+    const color = getColor(score);
 
     return (
         <div className="flex flex-col items-center gap-2">
@@ -40,9 +40,8 @@ export function ScoreGauge({ score, label, size = "md", showLabel = true }: Scor
                         cy={width / 2}
                         r={radius}
                         fill="none"
-                        stroke="var(--muted)"
+                        stroke="#E2E8F0" // Slate 200
                         strokeWidth={stroke}
-                        opacity={0.3}
                     />
                     {/* Progress circle */}
                     <motion.circle
@@ -50,7 +49,7 @@ export function ScoreGauge({ score, label, size = "md", showLabel = true }: Scor
                         cy={width / 2}
                         r={radius}
                         fill="none"
-                        stroke={colors.stroke}
+                        stroke={color}
                         strokeWidth={stroke}
                         strokeLinecap="round"
                         strokeDasharray={circumference}
@@ -62,17 +61,17 @@ export function ScoreGauge({ score, label, size = "md", showLabel = true }: Scor
                 {/* Score text in center */}
                 <div className="absolute inset-0 flex items-center justify-center">
                     <motion.span
-                        className={`${fontSize} font-bold`}
-                        initial={{ opacity: 0, scale: 0.5 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.5, duration: 0.3 }}
+                        className={`${fontSize} font-bold text-gray-900`}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.5 }}
                     >
                         {score}
                     </motion.span>
                 </div>
             </div>
             {showLabel && (
-                <span className="text-sm text-muted-foreground font-medium">{label}</span>
+                <span className="text-sm text-gray-600 font-medium">{label}</span>
             )}
         </div>
     );
@@ -96,21 +95,21 @@ export function AnimatedProgressBar({
     const percentage = Math.min((value / max) * 100, 100);
 
     const colors = {
-        primary: "bg-primary",
-        success: "bg-green-500",
+        primary: "bg-blue-600",
+        success: "bg-green-600",
         warning: "bg-amber-500",
-        danger: "bg-red-500",
+        danger: "bg-red-600",
     };
 
     return (
-        <div className="space-y-1.5">
-            <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-foreground">{label}</span>
+        <div className="space-y-2">
+            <div className="flex justify-between items-center text-sm">
+                <span className="font-medium text-gray-700">{label}</span>
                 {showValue && (
-                    <span className="text-sm text-muted-foreground">{value}%</span>
+                    <span className="text-gray-500 font-medium">{value}%</span>
                 )}
             </div>
-            <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                 <motion.div
                     className={`h-full rounded-full ${colors[color]}`}
                     initial={{ width: 0 }}
@@ -134,15 +133,14 @@ interface RadarChartProps {
 
 export function SkillRadarChart({ data, size = 200 }: RadarChartProps) {
     const center = size / 2;
-    const radius = (size - 80) / 2; // Reduced from -40 to -80 for more label space
+    const radius = (size - 80) / 2;
     const angleStep = (2 * Math.PI) / data.length;
 
     const points = data.map((item, i) => {
         const angle = i * angleStep - Math.PI / 2;
         const r = (item.value / 100) * radius;
 
-        // Calculate text anchor based on angle position
-        const labelRadius = radius + 30; // Increased from +20 to +30
+        const labelRadius = radius + 25;
         const labelX = center + labelRadius * Math.cos(angle);
         const labelY = center + labelRadius * Math.sin(angle);
 
@@ -152,17 +150,15 @@ export function SkillRadarChart({ data, size = 200 }: RadarChartProps) {
             label: item.name,
             labelX,
             labelY,
-            angle, // Store angle for text anchor calculation
+            angle,
         };
     });
 
     const pathD = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") + " Z";
-
-    // Grid circles
     const gridLevels = [0.25, 0.5, 0.75, 1];
 
     return (
-        <svg width={size} height={size} className="mx-auto">
+        <svg width={size} height={size} className="mx-auto block">
             {/* Grid */}
             {gridLevels.map((level, i) => (
                 <polygon
@@ -174,10 +170,9 @@ export function SkillRadarChart({ data, size = 200 }: RadarChartProps) {
                             return `${center + r * Math.cos(angle)},${center + r * Math.sin(angle)}`;
                         })
                         .join(" ")}
-                    fill="none"
-                    stroke="var(--border)"
+                    fill={i % 2 === 0 ? "#F8FAFC" : "#FFFFFF"} // Alternating ring fill
+                    stroke="#E2E8F0"
                     strokeWidth={1}
-                    opacity={0.5}
                 />
             ))}
 
@@ -191,9 +186,8 @@ export function SkillRadarChart({ data, size = 200 }: RadarChartProps) {
                         y1={center}
                         x2={center + radius * Math.cos(angle)}
                         y2={center + radius * Math.sin(angle)}
-                        stroke="var(--border)"
+                        stroke="#E2E8F0"
                         strokeWidth={1}
-                        opacity={0.3}
                     />
                 );
             })}
@@ -201,22 +195,20 @@ export function SkillRadarChart({ data, size = 200 }: RadarChartProps) {
             {/* Data polygon */}
             <motion.path
                 d={pathD}
-                fill="rgba(99, 102, 241, 0.2)"
-                stroke="rgb(99, 102, 241)"
+                fill="rgba(37, 99, 235, 0.2)" // Blue-600 with opacity
+                stroke="#2563EB" // Blue-600
                 strokeWidth={2}
-                initial={{ opacity: 0, scale: 0.5 }}
+                initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5 }}
-                style={{ transformOrigin: "center" }}
             />
 
             {/* Labels */}
             {points.map((p, i) => {
-                // Determine text anchor based on angle position
                 const angleDeg = (p.angle * 180) / Math.PI;
                 let textAnchor: "start" | "middle" | "end" = "middle";
-                if (angleDeg > -60 && angleDeg < 60) textAnchor = "start";
-                else if (angleDeg > 120 || angleDeg < -120) textAnchor = "end";
+                if (angleDeg > -70 && angleDeg < 70) textAnchor = "start";
+                else if (angleDeg > 110 || angleDeg < -110) textAnchor = "end";
 
                 return (
                     <text
@@ -225,7 +217,7 @@ export function SkillRadarChart({ data, size = 200 }: RadarChartProps) {
                         y={p.labelY}
                         textAnchor={textAnchor}
                         dominantBaseline="middle"
-                        className="text-xs fill-muted-foreground"
+                        className="text-[10px] font-medium fill-gray-500 uppercase tracking-wide"
                     >
                         {p.label}
                     </text>

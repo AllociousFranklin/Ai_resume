@@ -1,28 +1,24 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import Header from "@/components/Header";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "SkillSnap AI | Talent Intelligence Engine",
-  description: "AI-powered resume screening that verifies candidate skills through GitHub analysis and intelligent matching.",
-  keywords: ["resume screening", "AI hiring", "talent intelligence", "GitHub verification", "ATS"],
-  authors: [{ name: "SkillSnap AI" }],
+  title: "SkillSnap | Enterprise Talent Intelligence",
+  description: "Evidence-based candidate verification and ATS for modern recruiting teams. Verify skills with GitHub data.",
+  keywords: ["ATS", "recruiting", "talent intelligence", "skill verification", "hiring platform"],
+  authors: [{ name: "SkillSnap" }],
   openGraph: {
-    title: "SkillSnap AI | Talent Intelligence Engine",
-    description: "Evaluate candidates with bias-proof, evidence-based AI. Feasibility over fantasy.",
+    title: "SkillSnap | Enterprise Talent Intelligence",
+    description: "The Applicant Tracking System that verifies skills with actual code evidence.",
     type: "website",
   },
 };
@@ -35,14 +31,14 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
+        className={`${inter.variable} font-sans antialiased bg-background text-foreground min-h-screen flex flex-col`}
       >
         <ThemeProvider>
           <AuthProvider>
             <Header />
-            <div className="pt-14">
+            <main className="flex-1 pt-16">
               {children}
-            </div>
+            </main>
           </AuthProvider>
         </ThemeProvider>
       </body>

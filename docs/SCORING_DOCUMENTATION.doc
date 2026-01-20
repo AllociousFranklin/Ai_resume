@@ -1,0 +1,464 @@
+# SkillSnap AI - Mathematical Scoring Documentation
+
+**Version:** 1.0.0  
+**Last Updated:** January 2026
+
+---
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [ATS Score Calculation](#1-ats-score-calculation)
+3. [GitHub Score Calculation](#2-github-score-calculation)
+4. [Skill Verification (Proof Score)](#3-skill-verification-proof-score)
+5. [Resume Quality Score](#4-resume-quality-score)
+6. [Project Depth Score](#5-project-depth-score)
+7. [Final Fit Score](#6-final-fit-score)
+8. [ML Predictions](#7-ml-predictions)
+9. [Hiring Recommendation](#8-hiring-recommendation)
+10. [Summary Formula Sheet](#summary-formula-sheet)
+
+---
+
+## Overview
+
+SkillSnap AI uses a multi-layered scoring system to evaluate candidates. Each score component is calculated independently and then combined into a final fit score using dynamic weights based on job category.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    FINAL FIT SCORE (0-100)                     │
+│                                                                 │
+│   = (ATS × w1) + (GitHub × w2) + (Proof × w3) + (Quality × w4) │
+│     + (Experience × w5) + (Link × w6)                          │
+│                                                                 │
+│   where weights depend on job category                         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 1. ATS Score Calculation
+
+**File:** `src/lib/scoring.ts`, `src/lib/batch-processor.ts`
+
+### Formula
+
+```
+ATS Score = (Skill Match × 0.35) + (Tool Match × 0.25) + (Soft Match × 0.10) 
+          + (Experience Match × 0.15) + (Keyword Density × 0.15)
+```
+
+### Component Breakdown
+
+| Component | Weight | Description |
+|-----------|--------|-------------|
+| Skill Match | 35% | Technical skills match percentage |
+| Tool Match | 25% | Tools/technologies match percentage |
+| Soft Match | 10% | Soft skills match percentage |
+| Experience Match | 15% | Experience years vs requirement |
+| Keyword Density | 15% | Overall keyword match rate |
+
+### Priority-Weighted Matching
+
+Skills are weighted by priority level:
+
+| Priority | Weight Multiplier |
+|----------|-------------------|
+| Critical | 2.0x |
+| Preferred | 1.0x |
+| Bonus | 0.5x |
+
+**Partial matches receive 50% credit.**
+
+### Experience Match Calculation
+
+```javascript
+if (experienceYears >= requiredExperience) {
+    experienceMatch = 100
+} else if (experienceYears >= requiredExperience * 0.7) {
+    experienceMatch = 70
+} else if (experienceYears >= requiredExperience * 0.5) {
+    experienceMatch = 50
+} else {
+    experienceMatch = 30
+}
+```
+
+### Weighted Match Percentage Formula
+
+```javascript
+weightedPercent = (Σ matchedWeight + Σ partialWeight × 0.5) / Σ totalWeight × 100
+```
+
+---
+
+## 2. GitHub Score Calculation
+
+**File:** `src/lib/github.ts`
+
+### Formula
+
+```
+GitHub Score = Original Repos Score + Active Repos Score + Stars Score 
+             + Language Diversity Score + Velocity Bonus - Penalties
+```
+
+### Component Breakdown
+
+| Component | Formula | Max Points |
+|-----------|---------|------------|
+| Original Repos | `min(originalRepos × 5, 40)` | 40 |
+| Active Repos | `min(activeRepos × 8, 30)` | 30 |
+| Stars | `min(totalStars × 2, 20)` | 20 |
+| Language Diversity | `min(languages.length × 3, 15)` | 15 |
+| Velocity Bonus | `min(velocityScore × 0.15, 15)` | 15 |
+
+**Maximum possible: 120 → capped at 100**
+
+### Penalties
+
+| Condition | Penalty |
+|-----------|---------|
+| Forks > Original Repos × 2 | -15 (Tutorial hell) |
+| Active Repos = 0 | -20 (Inactive) |
+| Account < 6 months AND Repos < 3 | -10 (New account) |
+
+### Velocity Score Calculation
+
+```javascript
+velocityScore = min(100, 
+    (recentCommits × 2) + 
+    (activeRepos × 10) + 
+    (newLanguagesLastYear × 15)
+)
+```
+
+Where:
+- `recentCommits` = commits in last 6 months
+- `activeRepos` = repos updated in last 6 months
+- `newLanguagesLastYear` = languages used this/last year but not before
+
+### Proof Points Generated
+
+| Condition | Proof Point |
+|-----------|-------------|
+| Original Repos ≥ 5 | "Consistent Project History" |
+| Total Stars ≥ 10 | "Community Recognition" |
+| Active Repos ≥ 3 | "Recently Active" |
+| Velocity Score ≥ 50 | "High Coding Velocity" |
+| New Languages ≥ 2 | "Active Learner" |
+| Account Age ≥ 24 months | "Experienced Developer" |
+| Languages ≥ 5 | "Polyglot Developer" |
+
+---
+
+## 3. Skill Verification (Proof Score)
+
+**File:** `src/lib/analysis.ts`
+
+### Categories
+
+| Category | Definition | Score |
+|----------|------------|-------|
+| **Proven** | Skill IS a GitHub language | 100 points |
+| **Inferred** | Framework maps to detected language | 50-70 points |
+| **Unverified** | No GitHub evidence | 0 points |
+
+### Scoring by Evidence Type
+
+| Evidence Type | Points |
+|---------------|--------|
+| Direct Language Match | 100 |
+| Strong Framework Inference | 70 |
+| Tool/Partial Inference | 50 |
+| No Match | 0 |
+
+### Direct Languages (100 points)
+
+```
+python, javascript, typescript, java, c++, c#, c, go, rust, ruby, 
+php, swift, kotlin, scala, r, dart, html, css, sql, shell, bash, powershell
+```
+
+### Framework → Language Mappings (70 points)
+
+| Framework | Required Languages |
+|-----------|-------------------|
+| React, Vue, Angular, Next.js | JavaScript OR TypeScript |
+| Django, Flask, FastAPI, Pandas | Python |
+| Spring, Hibernate | Java OR Kotlin |
+| ASP.NET, Unity, Blazor | C# |
+| Flutter | Dart |
+| Rails | Ruby |
+| Laravel, Symfony | PHP |
+
+### Tool Mappings (50 points - Partial Proof)
+
+| Tool | Accepted Proxy Languages |
+|------|-------------------------|
+| Docker | Dockerfile, Shell, Python, Go |
+| Kubernetes | YAML, Go, Python |
+| AWS/Azure/GCP | Python, JavaScript, Go |
+| MongoDB/PostgreSQL | JavaScript, Python |
+
+### Proof Score Formula
+
+```javascript
+proofScore = average(scorePerSkill)
+           = Σ(skillScore) / totalSkillCount
+```
+
+---
+
+## 4. Resume Quality Score
+
+**File:** `src/lib/gemini.ts` (AI-generated)
+
+### Components
+
+| Component | Description | Range |
+|-----------|-------------|-------|
+| Formatting | Layout, structure, readability | 0-100 |
+| Achievements | Quantifiable accomplishments | 0-100 |
+| Clarity | Clear communication of experience | 0-100 |
+| Overall Score | Weighted average | 0-100 |
+
+### AI Evaluation Criteria
+
+The Gemini AI evaluates:
+- **Formatting**: Clean layout, consistent fonts, proper sections
+- **Achievements**: Numbers, metrics, impact statements
+- **Clarity**: Clear job progression, understandable descriptions
+- **Improvements**: Specific suggestions returned
+
+---
+
+## 5. Project Depth Score
+
+**File:** `src/lib/analysis.ts`
+
+### Formula
+
+```javascript
+complexity = starScore + languageScore + activityScore + sizeScore + docScore
+```
+
+### Component Breakdown
+
+| Component | Formula | Max Points |
+|-----------|---------|------------|
+| Stars | `min(totalStars × 3, 25)` | 25 |
+| Languages | `min(languages.length × 5, 25)` | 25 |
+| Active Repos | `min(activeRepos × 5, 25)` | 25 |
+| Repo Size | Tiered (see below) | 25 |
+| Documentation | Tiered (see below) | 10 |
+
+**Maximum: 110 → capped at 100**
+
+### Repo Size Scoring
+
+```javascript
+if (totalRepoSize > 5000 KB) sizeScore = 25
+else if (totalRepoSize > 1000 KB) sizeScore = 15
+else if (totalRepoSize > 500 KB) sizeScore = 10
+else sizeScore = 5
+```
+
+### Documentation Scoring
+
+```javascript
+if (reposWithDescription > 5) docScore = 10
+else if (reposWithDescription > 2) docScore = 5
+else docScore = 0
+```
+
+### Deep vs Surface Projects
+
+```javascript
+deepProjects = min(
+    (originalRepos × 0.3) + (totalStars / 10) + (reposWithDescription × 0.2),
+    originalRepos
+)
+surfaceProjects = max(0, originalRepos - deepProjects)
+```
+
+### Recommendation Logic
+
+| Complexity | Recommendation |
+|------------|----------------|
+| ≥ 70 | "Strong technical depth. Ready for complex projects." |
+| ≥ 40 | "Moderate depth. May need mentoring on complex architecture." |
+| < 40 | "Limited project complexity. Consider technical assessment." |
+
+---
+
+## 6. Final Fit Score
+
+**File:** `src/lib/analysis.ts`
+
+### Dynamic Weights by Job Category
+
+| Component | Technical | Creative | General |
+|-----------|-----------|----------|---------|
+| ATS Score | 30% | 20% | 40% |
+| GitHub Score | 25% | 0% | 0% |
+| Proof Score | 20% | 0% | 0% |
+| Quality Score | 15% | 30% | 10% |
+| Experience | 10% | 10% | 20% |
+| Link Score | 0%* | 40% | 30% |
+
+*Technical roles get a 5% **bonus** for valid links (not weighted)
+
+### Formula
+
+```javascript
+finalScore = (atsScore × weights.ats) +
+             (githubScore × weights.github) +
+             (proofScore × weights.proof) +
+             (qualityScore × weights.quality) +
+             (experienceBonus × weights.experience) +
+             (linkScore × weights.link)
+
+// Technical roles: Add link bonus
+if (jobCategory === "technical" && linkScore > 0) {
+    finalScore += (linkScore × 0.05)
+}
+
+// Experience bonus
+experienceBonus = experienceMatch ? 100 : 50
+```
+
+---
+
+## 7. ML Predictions
+
+**File:** `src/lib/ml/predictions.ts`
+
+### 7.1 Success Prediction
+
+```javascript
+successProbability = (
+    (atsScore × 0.20) +
+    (githubScore × 0.20) +
+    (proofScore × 0.15) +
+    (qualityScore × 0.10) +
+    (min(experienceYears × 10, 100) × 0.15) +
+    (skillMatchPercentage × 0.15) +
+    (velocityScore × 0.05)
+) / 100
+```
+
+### 7.2 Retention Prediction
+
+Base probability: **70%**
+
+| Factor | Adjustment |
+|--------|------------|
+| Experience ≥ 5 years | +10% |
+| Career Switcher | -10% |
+| Velocity ≥ 60 | +5% |
+| Skill Match < 50% | -15% |
+
+**Range: 30% - 95%**
+
+### 7.3 Growth Potential
+
+Base score: **50**
+
+| Indicator | Adjustment |
+|-----------|------------|
+| Velocity ≥ 70 | +20 |
+| Velocity ≥ 40 | +10 |
+| Early Career | +15 |
+| GitHub ≥ 60 | +10 |
+| Quality ≥ 70 | +5 |
+
+**Trajectory:**
+- High: Score ≥ 70
+- Moderate: Score ≥ 45
+- Low: Score < 45
+
+### 7.4 Ramp-Up Estimate
+
+Base: **6 weeks**
+
+| Factor | Adjustment |
+|--------|------------|
+| Skill Match ≥ 80% | -2 weeks |
+| Skill Match < 50% | +2 weeks |
+| Experience ≥ 5 years | -1 week |
+| Experience < 2 years | +2 weeks |
+| Velocity ≥ 60 | -1 week |
+
+**Range: 2 - 12 weeks**
+
+---
+
+## 8. Hiring Recommendation
+
+**File:** `src/lib/scoring.ts`
+
+| Final Score | Recommendation | Label | Color |
+|-------------|----------------|-------|-------|
+| ≥ 80 | strong_yes | "Strong Candidate" | Emerald |
+| ≥ 65 | yes | "Good Fit" | Green |
+| ≥ 45 | maybe | "Consider" | Amber |
+| < 45 | no | "Not Recommended" | Rose |
+
+---
+
+## Summary Formula Sheet
+
+### Quick Reference
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│ ATS Score = (Tech×0.35) + (Tools×0.25) + (Soft×0.10)                  │
+│           + (Exp×0.15) + (Keywords×0.15)                               │
+├────────────────────────────────────────────────────────────────────────┤
+│ GitHub Score = min(repos×5, 40) + min(active×8, 30) + min(stars×2, 20)│
+│              + min(langs×3, 15) + min(velocity×0.15, 15) - penalties   │
+├────────────────────────────────────────────────────────────────────────┤
+│ Proof Score = avg(score_per_skill)                                     │
+│   where: Direct = 100, Inferred = 70, Tool = 50, None = 0              │
+├────────────────────────────────────────────────────────────────────────┤
+│ Project Depth = stars×3 + langs×5 + active×5 + size + docs            │
+│   (each component capped, total capped at 100)                         │
+├────────────────────────────────────────────────────────────────────────┤
+│ Final Score (Technical) = ATS×0.30 + GitHub×0.25 + Proof×0.20         │
+│                         + Quality×0.15 + Exp×0.10 + LinkBonus          │
+├────────────────────────────────────────────────────────────────────────┤
+│ Recommendation: ≥80 Strong | ≥65 Good | ≥45 Consider | <45 No          │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Appendix: Skill Mappings Reference
+
+### Frameworks → Languages (70 points)
+
+| Ecosystem | Frameworks | Languages |
+|-----------|------------|-----------|
+| JavaScript | React, Vue, Angular, Next.js, Node, Express | javascript, typescript |
+| Python | Django, Flask, FastAPI, Pandas, TensorFlow | python |
+| Java | Spring, Hibernate, Android | java, kotlin |
+| C# | ASP.NET, Unity, Blazor | c# |
+| Mobile | Flutter, React Native, SwiftUI | dart, javascript, swift |
+| Ruby | Rails, Sinatra | ruby |
+| PHP | Laravel, Symfony | php |
+| Go | Gin | go |
+| Rust | Actix, Tokio | rust |
+
+### Tools → Proxy Languages (50 points)
+
+| Tool | Proxy Languages |
+|------|-----------------|
+| Docker | dockerfile, shell, python, go |
+| Kubernetes | yaml, go, python |
+| AWS/Azure/GCP | python, javascript, go |
+| Databases | javascript, python, sql |
+
+---
+
+*Document generated for SkillSnap AI v1.0*
